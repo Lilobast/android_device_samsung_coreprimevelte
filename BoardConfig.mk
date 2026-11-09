@@ -30,7 +30,10 @@ TARGET_SYSTEM_PROP += $(DEVICE_PATH)/system.prop
 TARGET_KERNEL_SOURCE := kernel/samsung/coreprimevelte
 TARGET_KERNEL_CONFIG := pxa1908_coreprimevelte_eur_defconfig
 TARGET_KERNEL_ARCH := arm64
-TARGET_KERNEL_HEADER_ARCH := arm64
+# Userspace is 32-bit ARM (like stock), so export 32-bit kernel headers.
+# There is no arm defconfig for pxa1908; a generic one is enough for headers.
+TARGET_KERNEL_HEADER_ARCH := arm
+KERNEL_HEADER_DEFCONFIG := multi_v7_defconfig
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
 KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
