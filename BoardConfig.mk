@@ -64,8 +64,10 @@ BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE  := ext4
 # Recovery
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/etc/recovery.fstab
 
-# TWRP Recovery
+# TWRP Recovery (only when bootable/recovery-twrp is synced; otherwise LineageOS recovery)
+ifneq ($(wildcard bootable/recovery-twrp/Android.mk),)
 RECOVERY_VARIANT := twrp
+endif
 TW_THEME := portrait_hdpi
 PRODUCT_COPY_FILES += $(DEVICE_PATH)/rootdir/etc/twrp.fstab:recovery/root/etc/twrp.fstab
 TW_HAS_DOWNLOAD_MODE := true
