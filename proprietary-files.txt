@@ -119,3 +119,5 @@ vendor/media/PFFprec_600.emd
 
 # Extras
 #lib/libxml2.so
+lib/libstlport.so
+lib/libMrvlOmx.so
