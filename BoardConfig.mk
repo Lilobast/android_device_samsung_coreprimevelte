@@ -32,7 +32,8 @@ TARGET_KERNEL_CONFIG := pxa1908_coreprimevelte_eur_defconfig
 TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
-KERNEL_TOOLCHAIN := /opt/toolchains/aarch64-linux-android-4.8/bin
+# Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
+KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
 
 #TARGET_GCC_VERSION_EXP := 4.9-linaro
 #TARGET_TOOLS_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION_EXP)/bin/arm-linux-androideabi-
