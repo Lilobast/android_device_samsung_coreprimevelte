@@ -34,6 +34,12 @@ TARGET_KERNEL_ARCH := arm64
 # There is no arm defconfig for pxa1908; a generic one is enough for headers.
 TARGET_KERNEL_HEADER_ARCH := arm
 KERNEL_HEADER_DEFCONFIG := multi_v7_defconfig
+
+# RIL: use the stock Lollipop rild + libril (they work with stock libsec-ril and
+# this modem); libril needs a shim for the old Parcel::writeString16 signature.
+TARGET_USES_STOCK_RIL := true
+BOARD_PROVIDES_RILD := true
+LINKER_FORCED_SHIM_LIBS := /system/lib/libril.so|libril_shim.so
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
 KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
