@@ -44,3 +44,6 @@ ro.config.max_starting_bg=10
 persist.service.camera.isptype=1
 #ro.kernel.qemu=0
 #ro.security.mode=tz
+
+# NFC HAL: nfc_nci.bcm2079x.PXA19xx.so (ro.product.board is mrvl)
+ro.hardware.nfc_nci.bcm2079x=PXA19xx
