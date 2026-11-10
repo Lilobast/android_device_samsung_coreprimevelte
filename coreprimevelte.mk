@@ -28,6 +28,11 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/audio/audio_path_config_apu.xml:system/etc/audio_path_config_apu.xml \
     $(LOCAL_PATH)/configs/audio/audio_path_config_codec.xml:system/etc/audio_path_config_codec.xml \
     $(LOCAL_PATH)/configs/audio/audio_gain_config.xml:system/etc/audio_gain_config.xml \
+    $(LOCAL_PATH)/configs/audio/audio_gain_calibration.xml:system/etc/audio_gain_calibration.xml \
+    $(LOCAL_PATH)/configs/audio/audio_swvol_calibration_def.xml:system/etc/audio_swvol_calibration_def.xml \
+    $(LOCAL_PATH)/configs/audio/audio_swvol_config.xml:system/etc/audio_swvol_config.xml \
+    $(LOCAL_PATH)/configs/audio/audio_effect_config.xml:system/etc/audio_effect_config.xml \
+    $(LOCAL_PATH)/configs/audio/audio_voice_calibration_ap.nvm:system/etc/audio_voice_calibration_ap.nvm \
     $(LOCAL_PATH)/configs/audio/audio_policy.conf:system/etc/audio_policy.conf
 
 # Media
