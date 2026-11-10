@@ -1,0 +1,36 @@
+diff --git frameworks/av/media/libstagefright/ACodec.cpp frameworks/av/media/libstagefright/ACodec.cpp
+index a11494d..b385daa 100644
+--- frameworks/av/media/libstagefright/ACodec.cpp
++++ frameworks/av/media/libstagefright/ACodec.cpp
+@@ -2148,6 +2148,16 @@ status_t ACodec::configureCodec(
+             usingSwRenderer = true;
+             haveNativeWindow = false;
+         }
++#ifdef MRVL_HW_DEC_USE_SW_RENDERER
++        // Marvell (PXA1908) Lollipop OMX decoders don't implement
++        // enableAndroidNativeBuffers: decode into component-allocated
++        // buffers and render them like the software codecs.
++        if (haveNativeWindow && !encoder &&
++                mComponentName.startsWith("OMX.MARVELL.VIDEO.HW.")) {
++            usingSwRenderer = true;
++            haveNativeWindow = false;
++        }
++#endif
+ 
+         if (encoder) {
+             err = setupVideoEncoder(mime, msg, outputFormat, inputFormat);
+diff --git frameworks/av/media/libstagefright/Android.mk frameworks/av/media/libstagefright/Android.mk
+index e708f68..8e56b57 100644
+--- frameworks/av/media/libstagefright/Android.mk
++++ frameworks/av/media/libstagefright/Android.mk
+@@ -123,6 +123,10 @@ ifeq ($(BOARD_CANT_REALLOCATE_OMX_BUFFERS),true)
+ LOCAL_CFLAGS += -DBOARD_CANT_REALLOCATE_OMX_BUFFERS
+ endif
+ 
++ifeq ($(TARGET_MRVL_HW_DEC_USE_SW_RENDERER),true)
++LOCAL_CFLAGS += -DMRVL_HW_DEC_USE_SW_RENDERER
++endif
++
+ LOCAL_STATIC_LIBRARIES := \
+         libstagefright_color_conversion \
+         libyuv_static \
