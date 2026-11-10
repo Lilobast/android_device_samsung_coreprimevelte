@@ -39,7 +39,7 @@ KERNEL_HEADER_DEFCONFIG := multi_v7_defconfig
 # this modem); libril needs a shim for the old Parcel::writeString16 signature.
 TARGET_USES_STOCK_RIL := true
 BOARD_PROVIDES_RILD := true
-LINKER_FORCED_SHIM_LIBS := /system/lib/libril.so|libril_shim.so
+LINKER_FORCED_SHIM_LIBS := /system/lib/libril.so|libril_shim.so:/system/lib/hw/camera.stock.so|libui_shim.so
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
 KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
