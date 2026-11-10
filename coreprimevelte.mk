@@ -68,3 +68,7 @@ endif
 
 # Inherit from 
 $(call inherit-product, device/samsung/pxa1908-common/pxa1908-common.mk)
+
+# USB: file transfer (MTP) by default; userdebug builds append adb
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+    persist.sys.usb.config=mtp
