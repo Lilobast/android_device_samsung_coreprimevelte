@@ -42,7 +42,7 @@
     </AudioPath>
     <AudioPath identifier="FMPlaybackI2SToSpeaker" component="CODEC">
         <Gain name="VOL_SEL_3">
-            <Value volume="100">0xb5</Value>
+            <Value volume="100">0xc4</Value>
         </Gain>
     </AudioPath>
     <AudioPath identifier="HiFi1PlaybackToHeadphone" component="APU">
@@ -63,7 +63,7 @@
     </AudioPath>
     <AudioPath identifier="HiFi1PlaybackToSpeaker" component="CODEC">
         <Gain name="VOL_SEL_3">
-            <Value volume="100">0xbe</Value>
+            <Value volume="100">0xc4</Value>
         </Gain>
     </AudioPath>
     <AudioPath identifier="HiFi1PlaybackToSpeaker" component="PMIC">
@@ -71,7 +71,7 @@
             <Value volume="100">0x3</Value>
         </Gain>
         <Gain name="DIG_GAIN">
-            <Value volume="100">0x2</Value>
+            <Value volume="100">0x3</Value>
         </Gain>
     </AudioPath>
     <AudioPath identifier="HiFi1PlaybackToSpeakerAndHeadphone" component="CODEC">
@@ -92,7 +92,7 @@
     </AudioPath>
     <AudioPath identifier="HiFi1RecordFromAMic1" component="CODEC">
         <Gain name="MIC1_ANA_GAIN">
-            <Value volume="100">0xc</Value>
+            <Value volume="100">0x14</Value>
         </Gain>
     </AudioPath>
     <AudioPath identifier="HiFi1RecordFromHsMic" component="APU">
