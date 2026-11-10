@@ -1,0 +1,92 @@
+diff --git frameworks/base/libs/hwui/renderthread/CanvasContext.cpp frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
+index 975ac8368e3..f7f9fa0d248 100644
+--- frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
++++ frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
+@@ -351,7 +351,7 @@ void CanvasContext::draw() {
+ 
+     mCurrentFrameInfo->markIssueDrawCommandsStart();
+ 
+-    Frame frame = mEglManager.beginFrame(mEglSurface);
++    Frame frame = mEglManager.beginFrame(mEglSurface, mNativeSurface.get());
+ 
+     if (frame.width() != mLastFrameWidth || frame.height() != mLastFrameHeight) {
+         // can't rely on prior content of window if viewport size changes
+diff --git frameworks/base/libs/hwui/renderthread/EglManager.cpp frameworks/base/libs/hwui/renderthread/EglManager.cpp
+index ac6a28fe628..cea065d8633 100644
+--- frameworks/base/libs/hwui/renderthread/EglManager.cpp
++++ frameworks/base/libs/hwui/renderthread/EglManager.cpp
+@@ -25,6 +25,7 @@
+ #include <cutils/log.h>
+ #include <cutils/properties.h>
+ #include <EGL/eglext.h>
++#include <system/window.h>
+ #include <string>
+ 
+ #define GLES_VERSION 2
+@@ -121,6 +122,10 @@ void EglManager::initialize() {
+             mSwapBehavior = SwapBehavior::Preserved;
+         }
+     }
++    mBufferAgeFromWindow = property_get_bool("debug.hwui.window_buffer_age", false);
++    if (mBufferAgeFromWindow) {
++        ALOGI("Buffer age taken from the window (BufferQueue), not EGL");
++    }
+ 
+     loadConfig();
+     createContext();
+@@ -298,7 +303,7 @@ EGLint EglManager::queryBufferAge(EGLSurface surface) {
+     return 0;
+ }
+ 
+-Frame EglManager::beginFrame(EGLSurface surface) {
++Frame EglManager::beginFrame(EGLSurface surface, EGLNativeWindowType window) {
+     LOG_ALWAYS_FATAL_IF(surface == EGL_NO_SURFACE,
+             "Tried to beginFrame on EGL_NO_SURFACE!");
+     makeCurrent(surface);
+@@ -306,7 +311,19 @@ Frame EglManager::beginFrame(EGLSurface surface) {
+     frame.mSurface = surface;
+     eglQuerySurface(mEglDisplay, surface, EGL_WIDTH, &frame.mWidth);
+     eglQuerySurface(mEglDisplay, surface, EGL_HEIGHT, &frame.mHeight);
++    // The EGL query also makes the driver dequeue its next buffer, so the
++    // window query below refers to the same buffer.
+     frame.mBufferAge = queryBufferAge(surface);
++    if (mBufferAgeFromWindow && window && mSwapBehavior == SwapBehavior::BufferAge) {
++        int windowAge = 0;
++        if (window->query(window, NATIVE_WINDOW_BUFFER_AGE, &windowAge) == 0) {
++            if (mBufferAgeLogFrames < 30) {
++                ALOGV("buffer age: egl %d, window %d", frame.mBufferAge, windowAge);
++                mBufferAgeLogFrames++;
++            }
++            frame.mBufferAge = windowAge;
++        }
++    }
+     eglBeginFrame(mEglDisplay, surface);
+     return frame;
+ }
+diff --git frameworks/base/libs/hwui/renderthread/EglManager.h frameworks/base/libs/hwui/renderthread/EglManager.h
+index 459baed70e4..0663592428e 100644
+--- frameworks/base/libs/hwui/renderthread/EglManager.h
++++ frameworks/base/libs/hwui/renderthread/EglManager.h
+@@ -68,7 +68,9 @@ public:
+     bool isCurrent(EGLSurface surface) { return mCurrentSurface == surface; }
+     // Returns true if the current surface changed, false if it was already current
+     bool makeCurrent(EGLSurface surface, EGLint* errOut = nullptr);
+-    Frame beginFrame(EGLSurface surface);
++    // window: optional; used to read the buffer age from the BufferQueue when
++    // the EGL driver's EGL_BUFFER_AGE_EXT is unreliable (debug.hwui.window_buffer_age)
++    Frame beginFrame(EGLSurface surface, EGLNativeWindowType window = nullptr);
+     void damageFrame(const Frame& frame, const SkRect& dirty);
+     // If this returns true it is mandatory that swapBuffers is called
+     // if damageFrame is called without subsequent calls to damageFrame().
+@@ -106,6 +108,11 @@ private:
+ 
+     EGLSurface mCurrentSurface;
+ 
++    // debug.hwui.window_buffer_age: take buffer age from the window's
++    // BufferQueue instead of the EGL driver
++    bool mBufferAgeFromWindow = false;
++    int mBufferAgeLogFrames = 0;
++
+     sp<GraphicBuffer> mAtlasBuffer;
+     int64_t* mAtlasMap;
+     size_t mAtlasMapSize;
