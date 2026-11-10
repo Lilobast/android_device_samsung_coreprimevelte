@@ -1,0 +1,95 @@
+diff --git frameworks/av/media/libstagefright/colorconversion/Android.mk frameworks/av/media/libstagefright/colorconversion/Android.mk
+index 0bf9701..5ad97e7 100644
+--- frameworks/av/media/libstagefright/colorconversion/Android.mk
++++ frameworks/av/media/libstagefright/colorconversion/Android.mk
+@@ -14,6 +14,11 @@ LOCAL_STATIC_LIBRARIES := \
+         libyuv_static \
+ 
+ LOCAL_CFLAGS += -Werror
++
++ifeq ($(TARGET_MRVL_HW_DEC_USE_SW_RENDERER),true)
++LOCAL_CFLAGS += -DMRVL_HW_DEC_USE_SW_RENDERER
++endif
++
+ LOCAL_CLANG := true
+ LOCAL_SANITIZE := signed-integer-overflow
+ 
+diff --git frameworks/av/media/libstagefright/colorconversion/SoftwareRenderer.cpp frameworks/av/media/libstagefright/colorconversion/SoftwareRenderer.cpp
+index d31ac58..f2044a7 100644
+--- frameworks/av/media/libstagefright/colorconversion/SoftwareRenderer.cpp
++++ frameworks/av/media/libstagefright/colorconversion/SoftwareRenderer.cpp
+@@ -26,6 +26,12 @@
+ #include <ui/GraphicBufferMapper.h>
+ #include <gui/IGraphicBufferProducer.h>
+ 
++#ifdef MRVL_HW_DEC_USE_SW_RENDERER
++#ifndef HAL_PIXEL_FORMAT_YCbCr_420_SP_MRVL
++#define HAL_PIXEL_FORMAT_YCbCr_420_SP_MRVL 0x2A  // NV12, Marvell gralloc
++#endif
++#endif
++
+ namespace android {
+ 
+ static bool runningInEmulator() {
+@@ -108,8 +114,21 @@ void SoftwareRenderer::resetFormatIfChanged(const sp<AMessage> &format) {
+     // hardware has YUV12 and RGBA8888 support, so convert known formats
+     if (!runningInEmulator()) {
+         switch (mColorFormat) {
++#ifdef MRVL_HW_DEC_USE_SW_RENDERER
++            // Marvell gralloc, GPU and HWC take NV12 directly, so the
++            // decoder's NV12 output only needs plain plane copies.
++            case OMX_COLOR_FormatYUV420SemiPlanar:
++            {
++                halFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP_MRVL;
++                bufWidth = (mCropWidth + 1) & ~1;
++                bufHeight = (mCropHeight + 1) & ~1;
++                break;
++            }
++#endif
+             case OMX_COLOR_FormatYUV420Planar:
++#ifndef MRVL_HW_DEC_USE_SW_RENDERER
+             case OMX_COLOR_FormatYUV420SemiPlanar:
++#endif
+             case OMX_TI_COLOR_FormatYUV420PackedSemiPlanar:
+             {
+                 halFormat = HAL_PIXEL_FORMAT_YV12;
+@@ -288,6 +307,39 @@ std::list<FrameRenderTracker::Info> SoftwareRenderer::render(
+             dst_u += dst_c_stride;
+             dst_v += dst_c_stride;
+         }
++#ifdef MRVL_HW_DEC_USE_SW_RENDERER
++    } else if (mColorFormat == OMX_COLOR_FormatYUV420SemiPlanar
++            && !runningInEmulator()) {
++        // NV12 -> Marvell NV12 gralloc buffer: copy both planes as-is.
++        if ((size_t)mWidth * mHeight * 3 / 2 > size) {
++            goto skip_copying;
++        }
++        const uint8_t *src_y = (const uint8_t *)data;
++        const uint8_t *src_uv = (const uint8_t *)data
++                + mWidth * (mHeight - mCropTop / 2);
++        uint8_t *dst_y = (uint8_t *)dst;
++        // The Vivante driver finds the chroma plane at stride * align(height, 4)
++        // (verified at 720p/1080p; 64-row alignment is only for allocation size).
++        uint8_t *dst_uv = dst_y + buf->stride * ALIGN(buf->height, 4);
++        size_t rowBytes = (mCropWidth + 1) & ~1;
++        size_t uvRows = (mCropHeight + 1) / 2;
++
++        if (buf->stride == mWidth && rowBytes == (size_t)mWidth) {
++            memcpy(dst_y, src_y, rowBytes * mCropHeight);
++            memcpy(dst_uv, src_uv, rowBytes * uvRows);
++        } else {
++            for (int y = 0; y < mCropHeight; ++y) {
++                memcpy(dst_y, src_y, rowBytes);
++                src_y += mWidth;
++                dst_y += buf->stride;
++            }
++            for (size_t y = 0; y < uvRows; ++y) {
++                memcpy(dst_uv, src_uv, rowBytes);
++                src_uv += mWidth;
++                dst_uv += buf->stride;
++            }
++        }
++#endif
+     } else if (mColorFormat == OMX_TI_COLOR_FormatYUV420PackedSemiPlanar
+             || mColorFormat == OMX_COLOR_FormatYUV420SemiPlanar) {
+         if ((size_t)mWidth * mHeight * 3 / 2 > size) {
