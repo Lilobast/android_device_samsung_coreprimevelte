@@ -1,16 +1,17 @@
 diff --git frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
-index f513b9f..e8b26d0 100644
+index f513b9f..40783c9 100644
 --- frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
 +++ frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
-@@ -19,6 +19,7 @@
+@@ -19,6 +19,8 @@
  
  #include <stdint.h>
  #include <sys/types.h>
-+#include <sys/system_properties.h>
++#define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
++#include <sys/_system_properties.h>
  #include <algorithm>
  #include <errno.h>
  #include <math.h>
-@@ -3007,6 +3008,43 @@ void SurfaceFlinger::doDisplayComposition(
+@@ -3007,6 +3009,43 @@ void SurfaceFlinger::doDisplayComposition(
      displayDevice->swapBuffers(getHwComposer());
  }
  
@@ -54,7 +55,7 @@ index f513b9f..e8b26d0 100644
  bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& displayDevice)
  {
      ALOGV("doComposeSurfaces");
-@@ -3039,6 +3077,10 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& displayDev
+@@ -3039,6 +3078,10 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& displayDev
          applyColorMatrix = !hasDeviceComposition && !skipClientColorTransform;
          if (applyColorMatrix) {
              colorMatrix = mDrawingState.colorMatrix;
