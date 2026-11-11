@@ -40,7 +40,8 @@ KERNEL_HEADER_DEFCONFIG := multi_v7_defconfig
 TARGET_USES_STOCK_RIL := false
 
 # Shims for Lollipop blobs
-TARGET_LD_SHIM_LIBS := /system/lib/hw/camera.stock.so|libui_shim.so
+# One line: make turns continuations into spaces, which the linker would keep in the paths.
+TARGET_LD_SHIM_LIBS := /system/lib/hw/camera.stock.so|libui_shim.so:/system/lib/hw/camera.stock.so|libcamera_parameters_shim.so:/system/lib/libHWComposerGC.so|libui_shim.so:/system/lib/libGAL.so|libcutils_shim.so:/system/lib/libsec-ril.so|libcutils_shim.so
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
 KERNEL_TOOLCHAIN := $(abspath prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin)
