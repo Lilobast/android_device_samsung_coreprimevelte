@@ -1,5 +1,5 @@
 diff --git system/core/init/reboot.cpp system/core/init/reboot.cpp
-index c538ce0..5e21e43 100644
+index c538ce0..a64de85 100644
 --- system/core/init/reboot.cpp
 +++ system/core/init/reboot.cpp
 @@ -23,10 +23,12 @@
@@ -15,15 +15,16 @@ index c538ce0..5e21e43 100644
  #include <sys/types.h>
  #include <sys/wait.h>
  
-@@ -183,9 +185,50 @@ bool IsRebootCapable() {
+@@ -183,9 +185,51 @@ bool IsRebootCapable() {
      return value == CAP_SET;
  }
  
-+// coreprimevelte bring-up: init's fatal paths reboot to "bootloader", which this kernel turns into
-+// recovery, and ramoops does not survive TWRP. Save the kernel log (it holds init's log) to the
-+// cache partition first, so it can be read from TWRP: /cache/init_fatal_kmsg.txt (previous: .1).
++// coreprimevelte bring-up: init's fatal paths reboot to "bootloader" (fs_mgr to "recovery"), which
++// this kernel both turns into recovery, and ramoops does not survive TWRP. Save the kernel log (it
++// holds init's log) to the cache partition before every reboot, so it can be read from TWRP:
++// /cache/init_fatal_kmsg.txt (previous: .1).
 +static void SaveFatalRebootLog(const std::string& rebootTarget) {
-+    if (getpid() != 1 || rebootTarget.compare(0, 10, "bootloader") != 0) return;
++    if (getpid() != 1) return;  // every reboot by init, whatever the target (bring-up)
 +    std::string dev;
 +    if (!android::base::ReadFileToString("/sys/class/block/mmcblk0p17/dev", &dev)) return;
 +    unsigned int maj, min;
