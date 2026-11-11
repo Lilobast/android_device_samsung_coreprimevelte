@@ -1,0 +1,97 @@
+diff --git a/frameworks/native/services/surfaceflinger/Android.mk frameworks/native/services/surfaceflinger/Android.mk
+index 18cc946..17f2f6f 100644
+--- frameworks/native/services/surfaceflinger/Android.mk
++++ frameworks/native/services/surfaceflinger/Android.mk
+@@ -70,6 +70,10 @@ ifeq ($(TARGET_BOARD_PLATFORM),s5pc110)
+     LOCAL_CFLAGS += -DHAS_CONTEXT_PRIORITY
+ endif
+ 
++ifeq ($(TARGET_HWC_LIVEDISPLAY_TINT),true)
++    LOCAL_CFLAGS += -DHWC_LIVEDISPLAY_TINT
++endif
++
+ ifeq ($(TARGET_DISABLE_TRIPLE_BUFFERING),true)
+     LOCAL_CFLAGS += -DTARGET_DISABLE_TRIPLE_BUFFERING
+ endif
+diff --git a/frameworks/native/services/surfaceflinger/SurfaceFlinger_hwc1.cpp frameworks/native/services/surfaceflinger/SurfaceFlinger_hwc1.cpp
+index e0b2d55..7b29ffc 100644
+--- frameworks/native/services/surfaceflinger/SurfaceFlinger_hwc1.cpp
++++ frameworks/native/services/surfaceflinger/SurfaceFlinger_hwc1.cpp
+@@ -2036,6 +2036,48 @@ void SurfaceFlinger::invalidateHwcGeometry()
+ }
+ 
+ 
++#ifdef HWC_LIVEDISPLAY_TINT
++#include <stdio.h>
++#define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
++#include <sys/_system_properties.h>
++// LiveDisplay tint that the HW composer applies in its own composition ("r g b", 32768 = 1.0).
++// Returns true and the diagonal matrix when a non-identity tint is set.
++static bool getHwcTintMatrix(mat4& m) {
++    static const prop_info* pi = NULL;
++    static uint32_t serial = ~0u;
++    static bool active = false;
++    static float gain[3] = { 1.0f, 1.0f, 1.0f };
++    if (pi == NULL)
++        pi = __system_property_find("sys.livedisplay.rgb");
++    if (pi == NULL)
++        return false;
++    uint32_t s = __system_property_serial(pi);
++    if (s != serial) {
++        serial = s;
++        char v[PROP_VALUE_MAX];
++        __system_property_read(pi, NULL, v);
++        int rgb[3];
++        active = false;
++        if (sscanf(v, "%d %d %d", &rgb[0], &rgb[1], &rgb[2]) == 3) {
++            for (int i = 0; i < 3; i++) {
++                int c = rgb[i] < 0 ? 0 : (rgb[i] > 32768 ? 32768 : rgb[i]);
++                // same 8-bit quantisation as the HWC so both paths look identical
++                gain[i] = (float)((c * 255 + 16384) / 32768) / 255.0f;
++                if (gain[i] != 1.0f)
++                    active = true;
++            }
++        }
++    }
++    if (!active)
++        return false;
++    m = mat4();
++    m[0][0] = gain[0];
++    m[1][1] = gain[1];
++    m[2][2] = gain[2];
++    return true;
++}
++#endif
++
+ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
+         const Region& inDirtyRegion)
+ {
+@@ -2073,7 +2115,15 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
+         }
+     }
+ 
+-    if (CC_LIKELY(!mDaltonize && !mHasColorMatrix && !mHasSecondaryColorMatrix)) {
++    bool hwcTintInGles = false;
++#ifdef HWC_LIVEDISPLAY_TINT
++    mat4 hwcTint;
++    if (hw->getDisplayType() == DisplayDevice::DISPLAY_PRIMARY && hw->getHwcDisplayId() >= 0 &&
++            !getHwComposer().hasHwcComposition(hw->getHwcDisplayId())) {
++        hwcTintInGles = getHwcTintMatrix(hwcTint);
++    }
++#endif
++    if (CC_LIKELY(!mDaltonize && !mHasColorMatrix && !mHasSecondaryColorMatrix && !hwcTintInGles)) {
+         if (!doComposeSurfaces(hw, dirtyRegion)) return;
+     } else {
+         RenderEngine& engine(getRenderEngine());
+@@ -2082,6 +2132,11 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
+             colorMatrix = mHasColorMatrix
+                     ? (colorMatrix * mSecondaryColorMatrix) : mSecondaryColorMatrix;
+         }
++#ifdef HWC_LIVEDISPLAY_TINT
++        if (hwcTintInGles) {
++            colorMatrix = colorMatrix * hwcTint;
++        }
++#endif
+         if (mDaltonize) {
+             colorMatrix = colorMatrix * mDaltonizer();
+         }
