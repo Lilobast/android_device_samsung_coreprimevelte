@@ -71,4 +71,7 @@ $(call inherit-product, device/samsung/pxa1908-common/pxa1908-common.mk)
 
 # USB: file transfer (MTP) by default; userdebug builds append adb
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
-    persist.sys.usb.config=mtp
+    persist.sys.usb.config=mtp,adb
+
+# Pie bring-up: accept the build PC without the on-screen prompt (debuggable builds only)
+PRODUCT_ADB_KEYS := device/samsung/coreprimevelte/bringup/adb_keys
