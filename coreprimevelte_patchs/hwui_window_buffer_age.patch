@@ -1,92 +1,96 @@
-diff --git frameworks/base/libs/hwui/renderthread/CanvasContext.cpp frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
-index 975ac8368e3..f7f9fa0d248 100644
---- frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
-+++ frameworks/base/libs/hwui/renderthread/CanvasContext.cpp
-@@ -351,7 +351,7 @@ void CanvasContext::draw() {
- 
-     mCurrentFrameInfo->markIssueDrawCommandsStart();
- 
--    Frame frame = mEglManager.beginFrame(mEglSurface);
-+    Frame frame = mEglManager.beginFrame(mEglSurface, mNativeSurface.get());
- 
-     if (frame.width() != mLastFrameWidth || frame.height() != mLastFrameHeight) {
-         // can't rely on prior content of window if viewport size changes
 diff --git frameworks/base/libs/hwui/renderthread/EglManager.cpp frameworks/base/libs/hwui/renderthread/EglManager.cpp
-index ac6a28fe628..cea065d8633 100644
+index 6e239e35..a3d16155 100644
 --- frameworks/base/libs/hwui/renderthread/EglManager.cpp
 +++ frameworks/base/libs/hwui/renderthread/EglManager.cpp
-@@ -25,6 +25,7 @@
- #include <cutils/log.h>
- #include <cutils/properties.h>
- #include <EGL/eglext.h>
-+#include <system/window.h>
+@@ -19,6 +19,7 @@
  #include <string>
  
- #define GLES_VERSION 2
-@@ -121,6 +122,10 @@ void EglManager::initialize() {
+ #include <cutils/properties.h>
++#include <system/window.h>
+ #include <log/log.h>
+ #include "utils/StringUtils.h"
+ 
+@@ -122,6 +123,8 @@ void EglManager::initialize() {
              mSwapBehavior = SwapBehavior::Preserved;
          }
      }
 +    mBufferAgeFromWindow = property_get_bool("debug.hwui.window_buffer_age", false);
-+    if (mBufferAgeFromWindow) {
-+        ALOGI("Buffer age taken from the window (BufferQueue), not EGL");
-+    }
++    ALOGI_IF(mBufferAgeFromWindow, "Buffer age taken from the window (BufferQueue), not EGL");
  
-     loadConfig();
+     loadConfigs();
      createContext();
-@@ -298,7 +303,7 @@ EGLint EglManager::queryBufferAge(EGLSurface surface) {
+@@ -335,6 +338,7 @@ EGLSurface EglManager::createSurface(EGLNativeWindowType window, bool wideColorG
+                             (void*)window, eglErrorString());
+     }
+ 
++    mSurfaceWindows[surface] = window;
+     return surface;
+ }
+ 
+@@ -342,6 +346,7 @@ void EglManager::destroySurface(EGLSurface surface) {
+     if (isCurrent(surface)) {
+         makeCurrent(EGL_NO_SURFACE);
+     }
++    mSurfaceWindows.erase(surface);
+     if (!eglDestroySurface(mEglDisplay, surface)) {
+         ALOGW("Failed to destroy surface %p, error=%s", (void*)surface, eglErrorString());
+     }
+@@ -402,6 +407,16 @@ EGLint EglManager::queryBufferAge(EGLSurface surface) {
      return 0;
  }
  
--Frame EglManager::beginFrame(EGLSurface surface) {
-+Frame EglManager::beginFrame(EGLSurface surface, EGLNativeWindowType window) {
-     LOG_ALWAYS_FATAL_IF(surface == EGL_NO_SURFACE,
-             "Tried to beginFrame on EGL_NO_SURFACE!");
++// The EGL buffer-age query makes the driver dequeue its next buffer, so the window
++// query refers to the same buffer.
++EGLint EglManager::queryWindowBufferAge(EGLSurface surface, EGLint eglAge) {
++    auto it = mSurfaceWindows.find(surface);
++    if (it == mSurfaceWindows.end() || !it->second) return eglAge;
++    int windowAge = 0;
++    if (it->second->query(it->second, NATIVE_WINDOW_BUFFER_AGE, &windowAge) != 0) return eglAge;
++    return windowAge;
++}
++
+ Frame EglManager::beginFrame(EGLSurface surface) {
+     LOG_ALWAYS_FATAL_IF(surface == EGL_NO_SURFACE, "Tried to beginFrame on EGL_NO_SURFACE!");
      makeCurrent(surface);
-@@ -306,7 +311,19 @@ Frame EglManager::beginFrame(EGLSurface surface) {
-     frame.mSurface = surface;
+@@ -410,6 +425,9 @@ Frame EglManager::beginFrame(EGLSurface surface) {
      eglQuerySurface(mEglDisplay, surface, EGL_WIDTH, &frame.mWidth);
      eglQuerySurface(mEglDisplay, surface, EGL_HEIGHT, &frame.mHeight);
-+    // The EGL query also makes the driver dequeue its next buffer, so the
-+    // window query below refers to the same buffer.
      frame.mBufferAge = queryBufferAge(surface);
-+    if (mBufferAgeFromWindow && window && mSwapBehavior == SwapBehavior::BufferAge) {
-+        int windowAge = 0;
-+        if (window->query(window, NATIVE_WINDOW_BUFFER_AGE, &windowAge) == 0) {
-+            if (mBufferAgeLogFrames < 30) {
-+                ALOGV("buffer age: egl %d, window %d", frame.mBufferAge, windowAge);
-+                mBufferAgeLogFrames++;
-+            }
-+            frame.mBufferAge = windowAge;
-+        }
++    if (mBufferAgeFromWindow && mSwapBehavior == SwapBehavior::BufferAge) {
++        frame.mBufferAge = queryWindowBufferAge(surface, frame.mBufferAge);
 +    }
      eglBeginFrame(mEglDisplay, surface);
      return frame;
  }
 diff --git frameworks/base/libs/hwui/renderthread/EglManager.h frameworks/base/libs/hwui/renderthread/EglManager.h
-index 459baed70e4..0663592428e 100644
+index ef9effbf..a31e030f 100644
 --- frameworks/base/libs/hwui/renderthread/EglManager.h
 +++ frameworks/base/libs/hwui/renderthread/EglManager.h
-@@ -68,7 +68,9 @@ public:
-     bool isCurrent(EGLSurface surface) { return mCurrentSurface == surface; }
-     // Returns true if the current surface changed, false if it was already current
-     bool makeCurrent(EGLSurface surface, EGLint* errOut = nullptr);
--    Frame beginFrame(EGLSurface surface);
-+    // window: optional; used to read the buffer age from the BufferQueue when
-+    // the EGL driver's EGL_BUFFER_AGE_EXT is unreliable (debug.hwui.window_buffer_age)
-+    Frame beginFrame(EGLSurface surface, EGLNativeWindowType window = nullptr);
-     void damageFrame(const Frame& frame, const SkRect& dirty);
-     // If this returns true it is mandatory that swapBuffers is called
-     // if damageFrame is called without subsequent calls to damageFrame().
-@@ -106,6 +108,11 @@ private:
+@@ -18,6 +18,7 @@
  
-     EGLSurface mCurrentSurface;
+ #include <EGL/egl.h>
+ #include <SkRect.h>
++#include <map>
+ #include <cutils/compiler.h>
+ #include <ui/GraphicBuffer.h>
+ #include <utils/StrongPointer.h>
+@@ -71,6 +72,7 @@ private:
+     void loadConfigs();
+     void createContext();
+     EGLint queryBufferAge(EGLSurface surface);
++    EGLint queryWindowBufferAge(EGLSurface surface, EGLint eglAge);
  
-+    // debug.hwui.window_buffer_age: take buffer age from the window's
-+    // BufferQueue instead of the EGL driver
-+    bool mBufferAgeFromWindow = false;
-+    int mBufferAgeLogFrames = 0;
+     RenderThread& mRenderThread;
+ 
+@@ -88,6 +90,11 @@ private:
+         BufferAge,
+     };
+     SwapBehavior mSwapBehavior = SwapBehavior::Discard;
 +
-     sp<GraphicBuffer> mAtlasBuffer;
-     int64_t* mAtlasMap;
-     size_t mAtlasMapSize;
++    // debug.hwui.window_buffer_age: take the buffer age from the window (BufferQueue)
++    // instead of the EGL driver. Window of each EGL surface, set in createSurface.
++    bool mBufferAgeFromWindow = false;
++    std::map<EGLSurface, EGLNativeWindowType> mSurfaceWindows;
+ };
+ 
+ } /* namespace renderthread */

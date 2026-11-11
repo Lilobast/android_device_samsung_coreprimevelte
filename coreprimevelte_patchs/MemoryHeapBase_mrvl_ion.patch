@@ -1,80 +1,55 @@
-diff --git frameworks/native/libs/binder/Android.mk frameworks/native/libs/binder/Android.mk
-index 54797d9..c0216a5 100644
---- frameworks/native/libs/binder/Android.mk
-+++ frameworks/native/libs/binder/Android.mk
-@@ -59,6 +59,9 @@ endif
+diff --git frameworks/native/libs/binder/Android.bp frameworks/native/libs/binder/Android.bp
+index 78c70ea..f01259f 100644
+--- frameworks/native/libs/binder/Android.bp
++++ frameworks/native/libs/binder/Android.bp
+@@ -113,6 +113,7 @@ cc_library {
+     },
  
- LOCAL_MODULE := libbinder
- LOCAL_SHARED_LIBRARIES += liblog libcutils libutils
-+ifeq ($(BOARD_USES_MRVL_ION_MEMORYHEAP),true)
-+LOCAL_CFLAGS += -DMRVL_ION_MEMORYHEAP
-+endif
- 
- LOCAL_CLANG := true
- LOCAL_SANITIZE := integer
+     shared_libs: [
++        "libion",
+         "libbase",
+         "liblog",
+         "libcutils",
 diff --git frameworks/native/libs/binder/MemoryHeapBase.cpp frameworks/native/libs/binder/MemoryHeapBase.cpp
-index 43a01e4..c8e88f8 100644
+index 03f00be..31266e2 100644
 --- frameworks/native/libs/binder/MemoryHeapBase.cpp
 +++ frameworks/native/libs/binder/MemoryHeapBase.cpp
-@@ -33,6 +33,53 @@
+@@ -30,8 +30,31 @@
+ #include <cutils/atomic.h>
+ #include <log/log.h>
  
++#include <string.h>
++#include <ion/ion.h>
++
  namespace android {
  
-+#ifdef MRVL_ION_MEMORYHEAP
-+#include <string.h>
-+#include <linux/ion.h>
-+
-+// Marvell L behaviour: flag 0x400 picks the system heap, otherwise the carveout heap;
-+// NO_CACHING drops the cache flags. The pxa1908 carveout heap is empty (the ISP uses an
-+// IOMMU), so fall back to the system heap. Returns a dma-buf fd, or -errno.
++// Marvell Lollipop behaviour for MemoryHeapBase("/dev/ion"): flag 0x400 picks the system heap,
++// otherwise the carveout heap; NO_CACHING drops the cache flags. The pxa1908 carveout heap is
++// empty (the ISP uses an IOMMU), so fall back to the system heap. Returns a dma-buf fd or -errno.
 +static int mrvlIonAlloc(size_t size, uint32_t heapFlags)
 +{
 +    const bool systemHeap = heapFlags & 0x400;
-+    const uint32_t ionFlags = (heapFlags & MemoryHeapBase::NO_CACHING) ? 0 :
++    const unsigned int ionFlags = (heapFlags & MemoryHeapBase::NO_CACHING) ? 0 :
 +            (ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC);
-+    int ionFd = open("/dev/ion", O_RDONLY | O_CLOEXEC);
++    int ionFd = ion_open();
 +    if (ionFd < 0)
-+        return -errno;
-+
-+    struct ion_allocation_data alloc;
-+    memset(&alloc, 0, sizeof(alloc));
-+    alloc.len = size;
-+    alloc.align = 4096;
-+    alloc.flags = ionFlags;
-+    alloc.heap_id_mask = systemHeap ? ION_HEAP_SYSTEM_MASK : ION_HEAP_CARVEOUT_MASK;
-+    int ret = ioctl(ionFd, ION_IOC_ALLOC, &alloc);
-+    if (ret < 0 && !systemHeap) {
-+        alloc.heap_id_mask = ION_HEAP_SYSTEM_MASK;
-+        ret = ioctl(ionFd, ION_IOC_ALLOC, &alloc);
-+    }
-+    if (ret < 0) {
-+        ret = -errno;
-+        close(ionFd);
-+        return ret;
-+    }
-+
-+    struct ion_fd_data share;
-+    memset(&share, 0, sizeof(share));
-+    share.handle = alloc.handle;
-+    ret = ioctl(ionFd, ION_IOC_SHARE, &share) < 0 ? -errno : share.fd;
-+
-+    // The shared dma-buf fd keeps the buffer alive; drop our client handle.
-+    struct ion_handle_data handle;
-+    handle.handle = alloc.handle;
-+    ioctl(ionFd, ION_IOC_FREE, &handle);
-+    close(ionFd);
-+    return ret;
++        return ionFd;
++    int shareFd = -1;
++    int ret = ion_alloc_fd(ionFd, size, 4096,
++            systemHeap ? ION_HEAP_SYSTEM_MASK : ION_HEAP_CARVEOUT_MASK, ionFlags, &shareFd);
++    if (ret < 0 && !systemHeap)
++        ret = ion_alloc_fd(ionFd, size, 4096, ION_HEAP_SYSTEM_MASK, ionFlags, &shareFd);
++    ion_close(ionFd);
++    return ret < 0 ? ret : shareFd;
 +}
-+#endif
 +
  // ---------------------------------------------------------------------------
  
  MemoryHeapBase::MemoryHeapBase()
-@@ -62,6 +109,18 @@ MemoryHeapBase::MemoryHeapBase(const char* device, size_t size, uint32_t flags)
+@@ -61,6 +84,16 @@ MemoryHeapBase::MemoryHeapBase(const char* device, size_t size, uint32_t flags)
      : mFD(-1), mSize(0), mBase(MAP_FAILED), mFlags(flags),
        mDevice(0), mNeedUnmap(false), mOffset(0)
  {
-+#ifdef MRVL_ION_MEMORYHEAP
 +    if (device && !strcmp(device, "/dev/ion")) {
 +        const size_t pagesize = getpagesize();
 +        size = ((size + pagesize-1) & ~(pagesize-1));
@@ -85,7 +60,6 @@ index 43a01e4..c8e88f8 100644
 +        }
 +        return;
 +    }
-+#endif
      int open_flags = O_RDWR;
      if (flags & NO_CACHING)
          open_flags |= O_SYNC;
