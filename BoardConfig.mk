@@ -87,5 +87,5 @@ TW_EXCLUDE_SUPERSU := true
 # Bring-up only: the 14.1 policy breaks Pie neverallow rules. Remove once sepolicy is ported.
 SELINUX_IGNORE_NEVERALLOWS := true
 
-# Pie bring-up: SELinux permissive until the device policy is ported
-BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
+# Pie bring-up: SELinux permissive is set in the kernel defconfig (CONFIG_CMDLINE);
+# the bootloader ignores the boot.img cmdline.
