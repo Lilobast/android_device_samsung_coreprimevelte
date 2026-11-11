@@ -1,0 +1,67 @@
+diff --git frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
+index f513b9f..e8b26d0 100644
+--- frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
++++ frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -19,6 +19,7 @@
+ 
+ #include <stdint.h>
+ #include <sys/types.h>
++#include <sys/system_properties.h>
+ #include <algorithm>
+ #include <errno.h>
+ #include <math.h>
+@@ -3007,6 +3008,43 @@ void SurfaceFlinger::doDisplayComposition(
+     displayDevice->swapBuffers(getHwComposer());
+ }
+ 
++// pxa1908 LiveDisplay: the HW composer applies the colour calibration from sys.livedisplay.rgb
++// ("r g b", 32768 = 1.0) in its 2D-engine composition. A frame composed only by the GPU is posted
++// without that composition, so apply the same gains here. No-op when the property is absent.
++static bool getHwcTintMatrix(mat4& m) {
++    static const prop_info* pi = nullptr;
++    static uint32_t serial = ~0u;
++    static bool active = false;
++    static float gain[3] = {1.0f, 1.0f, 1.0f};
++    if (pi == nullptr) {
++        pi = __system_property_find("sys.livedisplay.rgb");
++        if (pi == nullptr) return false;
++    }
++    uint32_t s = __system_property_serial(pi);
++    if (s != serial) {
++        serial = s;
++        __system_property_read_callback(pi,
++                [](void*, const char*, const char* value, uint32_t) {
++                    int rgb[3];
++                    active = false;
++                    if (sscanf(value, "%d %d %d", &rgb[0], &rgb[1], &rgb[2]) != 3) return;
++                    for (int i = 0; i < 3; i++) {
++                        int c = rgb[i] < 0 ? 0 : (rgb[i] > 32768 ? 32768 : rgb[i]);
++                        // same 8-bit quantisation as the HWC so both paths look identical
++                        gain[i] = (float)((c * 255 + 16384) / 32768) / 255.0f;
++                        if (gain[i] != 1.0f) active = true;
++                    }
++                },
++                nullptr);
++    }
++    if (!active) return false;
++    m = mat4();
++    m[0][0] = gain[0];
++    m[1][1] = gain[1];
++    m[2][2] = gain[2];
++    return true;
++}
++
+ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& displayDevice)
+ {
+     ALOGV("doComposeSurfaces");
+@@ -3039,6 +3077,10 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& displayDev
+         applyColorMatrix = !hasDeviceComposition && !skipClientColorTransform;
+         if (applyColorMatrix) {
+             colorMatrix = mDrawingState.colorMatrix;
++            mat4 hwcTint;
++            if (hwcId == HWC_DISPLAY_PRIMARY && getHwcTintMatrix(hwcTint)) {
++                colorMatrix = colorMatrix * hwcTint;
++            }
+         }
+ 
+         // The current enhanced saturation matrix is designed to enhance Display P3,
