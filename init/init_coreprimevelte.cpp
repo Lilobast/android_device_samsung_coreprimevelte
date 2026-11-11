@@ -30,14 +30,20 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <cutils/properties.h>
+
+#include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android-base/stringprintf.h>
 
 #include "vendor_init.h"
 #include "property_service.h"
-#include "log.h"
-#include "util.h"
 
 #include "init_pxa1908.h"
+
+using android::base::GetProperty;
+using android::base::StringPrintf;
+using android::init::property_set;
+
 
 void set_rild_libpath(char const *variant)
 {
@@ -84,11 +90,11 @@ void gsm_properties(char const *rild_lib_variant)
 
 void init_target_properties()
 {
-    std::string platform = property_get("ro.board.platform");
+    std::string platform = GetProperty("ro.board.platform", "");
     if (platform != ANDROID_TARGET)
         return;
 
-    std::string bootloader = property_get("ro.bootloader");
+    std::string bootloader = GetProperty("ro.bootloader", "");
 
     if( bootloader.find("G361F") == 0 )
     {
@@ -100,6 +106,6 @@ void init_target_properties()
         lte_properties("");
     }
 
-    std::string device = property_get("ro.product.device");
-    INFO("Found bootloader id %s setting build properties for %s device\n", bootloader.c_str(), device.c_str());
+    std::string device = GetProperty("ro.product.device", "");
+    LOG(INFO) << StringPrintf("Found bootloader id %s setting build properties for %s device", bootloader.c_str(), device.c_str());
 }
