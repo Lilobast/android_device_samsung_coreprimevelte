@@ -1,0 +1,19 @@
+diff --git system/core/init/security.cpp system/core/init/security.cpp
+index a3494a2..13df5e2 100644
+--- system/core/init/security.cpp
++++ system/core/init/security.cpp
+@@ -176,6 +176,14 @@ Result<Success> SetMmapRndBitsAction(const BuiltinArguments&) {
+     LOG(ERROR) << "Unknown architecture";
+ #endif
+ 
++    // coreprimevelte: the 3.14 kernel predates ARCH_MMAP_RND_BITS (commits listed above). Boot with
++    // the kernel's built-in randomization instead of rebooting. Only when the sysctl is missing.
++    if (access(MMAP_RND_PATH, F_OK) != 0 && access(MMAP_RND_COMPAT_PATH, F_OK) != 0) {
++        LOG(ERROR) << "kernel has no mmap_rnd_bits sysctl: keeping the kernel's default mmap "
++                      "randomization (backport ARCH_MMAP_RND_BITS to fix)";
++        return Success();
++    }
++
+     LOG(FATAL) << "Unable to set adequate mmap entropy value!";
+     return Error();
+ }
