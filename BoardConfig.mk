@@ -43,7 +43,7 @@ TARGET_USES_STOCK_RIL := false
 TARGET_LD_SHIM_LIBS := /system/lib/hw/camera.stock.so|libui_shim.so
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
-KERNEL_TOOLCHAIN := $(BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+KERNEL_TOOLCHAIN := $(abspath prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin)
 
 #TARGET_GCC_VERSION_EXP := 4.9-linaro
 #TARGET_TOOLS_PREFIX := prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION_EXP)/bin/arm-linux-androideabi-
@@ -86,3 +86,6 @@ TW_EXCLUDE_SUPERSU := true
 
 # Bring-up only: the 14.1 policy breaks Pie neverallow rules. Remove once sepolicy is ported.
 SELINUX_IGNORE_NEVERALLOWS := true
+
+# Pie bring-up: SELinux permissive until the device policy is ported
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
