@@ -42,10 +42,10 @@ BOARD_PROVIDES_RILD := true
 LINKER_FORCED_SHIM_LIBS := /system/lib/libril.so|libril_shim.so:/system/lib/hw/camera.stock.so|libui_shim.so
 TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 # Use the GCC 4.9 aarch64 toolchain bundled with LineageOS (stock kernel used 4.8)
-KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+KERNEL_TOOLCHAIN := prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
 
 #TARGET_GCC_VERSION_EXP := 4.9-linaro
-#TARGET_TOOLS_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION_EXP)/bin/arm-linux-androideabi-
+#TARGET_TOOLS_PREFIX := prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$(TARGET_GCC_VERSION_EXP)/bin/arm-linux-androideabi-
 
 BOARD_KERNEL_BASE         := 0x10000000
 BOARD_KERNEL_CMDLINE      := 

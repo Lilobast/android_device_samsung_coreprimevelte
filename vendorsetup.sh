@@ -1,3 +1,0 @@
-add_lunch_combo lineage_coreprimevelte-eng
-add_lunch_combo lineage_coreprimevelte-user
-add_lunch_combo lineage_coreprimevelte-userdebug
