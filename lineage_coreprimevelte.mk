@@ -30,3 +30,9 @@ PRODUCT_NAME := lineage_coreprimevelte
 PRODUCT_BRAND := samsung
 PRODUCT_MODEL := SM-G361F
 PRODUCT_MANUFACTURER := samsung
+
+# Stock fingerprint/description (were set by the init helper on 14.1). Set at build time: the Pie
+# fingerprint is a "long" property that init cannot override safely.
+PRODUCT_BUILD_PROP_OVERRIDES += \
+    BUILD_FINGERPRINT=samsung/coreprimeveltexx/coreprimevelte:5.1.1/LMY48B/G361FXXU1AOL1:user/release-keys \
+    PRIVATE_BUILD_DESC="coreprimeveltexx-user 5.1.1 LMY48B G361FXXU1AOL1 release-keys"
