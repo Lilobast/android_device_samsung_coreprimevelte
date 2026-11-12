@@ -1,0 +1,17 @@
+diff --git frameworks/av/media/libstagefright/omx/OMXNodeInstance.cpp frameworks/av/media/libstagefright/omx/OMXNodeInstance.cpp
+index d07d3ea..49d288e 100644
+--- frameworks/av/media/libstagefright/omx/OMXNodeInstance.cpp
++++ frameworks/av/media/libstagefright/omx/OMXNodeInstance.cpp
+@@ -649,8 +649,11 @@ status_t OMXNodeInstance::setParameter(
+     // renders the output with the 2D engine as well (see MrvlGcuCopy.h).
+     if ((uint32_t)index == kMrvlIndexGpuCopyOutput) {
+         const OMX_CONFIG_BOOLEANTYPE *enable = (const OMX_CONFIG_BOOLEANTYPE *)params;
++        // mName is the shortened debug name on Pie ("MARVELL.HW.CODA7542DECODER"), the full
++        // component name ("OMX.MARVELL.VIDEO.HW.*") on older releases.
+         if (params == NULL || size < sizeof(*enable) || mName == NULL
+-                || strstr(mName, "MARVELL.VIDEO.HW.") == NULL || strstr(mName, "secure") != NULL) {
++                || strstr(mName, "MARVELL.") == NULL || strstr(mName, "HW.") == NULL
++                || strstr(mName, "secure") != NULL) {
+             return BAD_VALUE;
+         }
+         mMrvlGpuCopyOutput = enable->bEnabled == OMX_TRUE;
