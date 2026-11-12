@@ -85,3 +85,8 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 # and crashed mediaserver every few seconds. Keep it off until the camera HAL works.
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     config.disable_cameraservice=true
+
+# Vivante GC: EGLImage texture uploads don't reach the gralloc buffer (invisible launcher icons):
+# HWUI fills hardware bitmaps from the CPU.
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.hwui.hw_bitmap_cpu_upload=true
