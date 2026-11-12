@@ -1,0 +1,73 @@
+diff --git hardware/samsung/ril/ril/libril/ril_service.cpp hardware/samsung/ril/ril/libril/ril_service.cpp
+index ad24bf3..3dd0589 100644
+--- hardware/samsung/ril/ril/libril/ril_service.cpp
++++ hardware/samsung/ril/ril/libril/ril_service.cpp
+@@ -2812,6 +2812,34 @@ int responseInt(RadioResponseInfo& responseInfo, int serial, int responseType, R
+     return ret;
+ }
+ 
++/* Samsung libsec-ril (L): RIL_AppStatus carries five extra retry counters, so the
++ * card status struct is larger than AOSP's RIL_CardStatus_v6. */
++typedef struct {
++    RIL_AppType app_type;
++    RIL_AppState app_state;
++    RIL_PersoSubstate perso_substate;
++    char *aid_ptr;
++    char *app_label_ptr;
++    int pin1_replaced;
++    RIL_PinState pin1;
++    RIL_PinState pin2;
++    int pin1_num_retries;
++    int puk1_num_retries;
++    int pin2_num_retries;
++    int puk2_num_retries;
++    int perso_unblock_retries;
++} RIL_AppStatus_Samsung;
++
++typedef struct {
++    RIL_CardState card_state;
++    RIL_PinState universal_pin_state;
++    int gsm_umts_subscription_app_index;
++    int cdma_subscription_app_index;
++    int ims_subscription_app_index;
++    int num_applications;
++    RIL_AppStatus_Samsung applications[RIL_CARD_MAX_APPS];
++} RIL_CardStatus_Samsung;
++
+ int radio::getIccCardStatusResponse(int slotId,
+                                    int responseType, int serial, RIL_Errno e,
+                                    void *response, size_t responseLen) {
+@@ -2819,8 +2847,31 @@ int radio::getIccCardStatusResponse(int slotId,
+         RadioResponseInfo responseInfo = {};
+         populateResponseInfo(responseInfo, serial, responseType, e);
+         CardStatus cardStatus = {};
+-        if (response == NULL || responseLen != sizeof(RIL_CardStatus_v6)) {
+-            RLOGE("getIccCardStatusResponse: Invalid response");
++        if (response != NULL && responseLen == sizeof(RIL_CardStatus_Samsung)) {
++            RIL_CardStatus_Samsung *p_cur = ((RIL_CardStatus_Samsung *) response);
++            cardStatus.cardState = (CardState) p_cur->card_state;
++            cardStatus.universalPinState = (PinState) p_cur->universal_pin_state;
++            cardStatus.gsmUmtsSubscriptionAppIndex = p_cur->gsm_umts_subscription_app_index;
++            cardStatus.cdmaSubscriptionAppIndex = p_cur->cdma_subscription_app_index;
++            cardStatus.imsSubscriptionAppIndex = p_cur->ims_subscription_app_index;
++            int num = p_cur->num_applications;
++            if (num < 0) num = 0;
++            if (num > RIL_CARD_MAX_APPS) num = RIL_CARD_MAX_APPS;
++            cardStatus.applications.resize(num);
++            for (int i = 0; i < num; i++) {
++                RIL_AppStatus_Samsung *a = &p_cur->applications[i];
++                AppStatus &out = cardStatus.applications[i];
++                out.appType = (AppType) a->app_type;
++                out.appState = (AppState) a->app_state;
++                out.persoSubstate = (PersoSubstate) a->perso_substate;
++                out.aidPtr = convertCharPtrToHidlString(a->aid_ptr);
++                out.appLabelPtr = convertCharPtrToHidlString(a->app_label_ptr);
++                out.pin1Replaced = a->pin1_replaced;
++                out.pin1 = (PinState) a->pin1;
++                out.pin2 = (PinState) a->pin2;
++            }
++        } else if (response == NULL || responseLen != sizeof(RIL_CardStatus_v6)) {
++            RLOGE("getIccCardStatusResponse: Invalid response (len %zu)", responseLen);
+             if (e == RIL_E_SUCCESS) responseInfo.error = RadioError::INVALID_RESPONSE;
+         } else {
+             RIL_CardStatus_v6 *p_cur = ((RIL_CardStatus_v6 *) response);
