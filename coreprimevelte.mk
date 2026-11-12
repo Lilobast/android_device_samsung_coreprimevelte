@@ -80,3 +80,8 @@ PRODUCT_ADB_KEYS := device/samsung/coreprimevelte/bringup/adb_keys
 # Bring-up (LOS16): allow "adb root" without Developer options (no screen yet). Remove later.
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.sys.root_access=3
+
+# Camera not ported to Pie yet: on boot the camera service opened the camera (flash unit probe)
+# and crashed mediaserver every few seconds. Keep it off until the camera HAL works.
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+    config.disable_cameraservice=true
