@@ -76,3 +76,7 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 
 # Pie bring-up: accept the build PC without the on-screen prompt (debuggable builds only)
 PRODUCT_ADB_KEYS := device/samsung/coreprimevelte/bringup/adb_keys
+
+# Bring-up (LOS16): allow "adb root" without Developer options (no screen yet). Remove later.
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+    persist.sys.root_access=3
