@@ -86,7 +86,7 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     config.disable_cameraservice=true
 
-# Vivante GC: EGLImage texture uploads don't reach the gralloc buffer (invisible launcher icons):
-# HWUI fills hardware bitmaps from the CPU.
+# HWUI: the Skia GL pipeline draws nothing for launcher icons on the Vivante GC GPU; the HWUI GL
+# pipeline (the only one on Android 7) works.
 PRODUCT_PROPERTY_OVERRIDES += \
-    ro.hwui.hw_bitmap_cpu_upload=true
+    debug.hwui.renderer=opengl
