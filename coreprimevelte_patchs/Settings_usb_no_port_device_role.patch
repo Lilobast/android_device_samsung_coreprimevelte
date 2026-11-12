@@ -1,5 +1,5 @@
 diff --git packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
-index 9b0dcec..87e3881 100644
+index 9b0dcec..32a7e49 100644
 --- packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
 +++ packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
 @@ -95,11 +95,16 @@ public class UsbBackend {
@@ -19,3 +19,21 @@ index 9b0dcec..87e3881 100644
          return mPortStatus == null ? UsbPort.DATA_ROLE_NONE : mPortStatus.getCurrentDataRole();
      }
  
+@@ -154,6 +159,8 @@ public class UsbBackend {
+     }
+ 
+     public boolean isSingleDataRoleSupported() {
++        // No USB port HAL data: one fixed role, hide the role switch.
++        if (mPort == null) return true;
+         return mPort != null && mPortStatus != null
+                 && ((!mPortStatus
+                 .isRoleCombinationSupported(UsbPort.POWER_ROLE_SINK, UsbPort.DATA_ROLE_HOST)
+@@ -166,6 +173,8 @@ public class UsbBackend {
+     }
+ 
+     public boolean isSinglePowerRoleSupported() {
++        // No USB port HAL data: one fixed role, hide the role switch.
++        if (mPort == null) return true;
+         return mPort != null && mPortStatus != null
+                 && ((!mPortStatus
+                 .isRoleCombinationSupported(UsbPort.POWER_ROLE_SINK, UsbPort.DATA_ROLE_DEVICE)
