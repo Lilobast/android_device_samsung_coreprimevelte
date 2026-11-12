@@ -1,0 +1,94 @@
+diff --git hardware/interfaces/camera/device/1.0/default/CameraDevice.cpp hardware/interfaces/camera/device/1.0/default/CameraDevice.cpp
+index a1f1830..97b2cfb 100644
+--- hardware/interfaces/camera/device/1.0/default/CameraDevice.cpp
++++ hardware/interfaces/camera/device/1.0/default/CameraDevice.cpp
+@@ -15,6 +15,7 @@
+  */
+ 
+ #define LOG_TAG "CamDev@1.0-impl"
++#include <atomic>
+ #include <hardware/camera.h>
+ #include <hardware/gralloc1.h>
+ #include <hidlmemory/mapping.h>
+@@ -112,7 +113,27 @@ CameraDevice::CameraDevice(
+     }
+ }
+ 
++// Android 5 HAL1 blobs (e.g. Samsung/Marvell camera.stock.so) call request_memory and the other
++// callbacks with a NULL user cookie: the L CameraService ignored it. Only one HAL1 device is open
++// at a time, so fall back to the device that registered the callbacks last.
++static std::atomic<CameraDevice*> sOpenDevice{nullptr};
++
++static CameraDevice* deviceFromUser(void* user) {
++    CameraDevice* object = static_cast<CameraDevice*>(user);
++    if (object == nullptr) {
++        object = sOpenDevice.load();
++        ALOGW_IF(object == nullptr, "camera HAL callback with no user and no open device");
++    }
++    return object;
++}
++
++static void forgetOpenDevice(CameraDevice* device) {
++    CameraDevice* expected = device;
++    sOpenDevice.compare_exchange_strong(expected, nullptr);
++}
++
+ CameraDevice::~CameraDevice() {
++    forgetOpenDevice(this);
+     Mutex::Autolock _l(mLock);
+     if (mDevice != nullptr) {
+         ALOGW("%s: camera %s is deleted while open", __FUNCTION__, mCameraId.c_str());
+@@ -361,8 +382,8 @@ CameraDevice::CameraHeapMemory::~CameraHeapMemory() {
+ // shared memory methods
+ camera_memory_t* CameraDevice::sGetMemory(int fd, size_t buf_size, uint_t num_bufs, void *user) {
+     ALOGV("%s", __FUNCTION__);
+-    CameraDevice* object = static_cast<CameraDevice*>(user);
+-    if (object->mDeviceCallback == nullptr) {
++    CameraDevice* object = deviceFromUser(user);
++    if (object == nullptr || object->mDeviceCallback == nullptr) {
+         ALOGE("%s: camera HAL request memory while camera is not opened!", __FUNCTION__);
+         return nullptr;
+     }
+@@ -412,7 +433,7 @@ void CameraDevice::sPutMemory(camera_memory_t *data) {
+ // Callback forwarding methods
+ void CameraDevice::sNotifyCb(int32_t msg_type, int32_t ext1, int32_t ext2, void *user) {
+     ALOGV("%s", __FUNCTION__);
+-    CameraDevice* object = static_cast<CameraDevice*>(user);
++    CameraDevice* object = deviceFromUser(user);
+     if (object->mDeviceCallback != nullptr) {
+         object->mDeviceCallback->notifyCallback((NotifyCallbackMsg) msg_type, ext1, ext2);
+     }
+@@ -421,7 +442,7 @@ void CameraDevice::sNotifyCb(int32_t msg_type, int32_t ext1, int32_t ext2, void
+ void CameraDevice::sDataCb(int32_t msg_type, const camera_memory_t *data, unsigned int index,
+         camera_frame_metadata_t *metadata, void *user) {
+     ALOGV("%s", __FUNCTION__);
+-    CameraDevice* object = static_cast<CameraDevice*>(user);
++    CameraDevice* object = deviceFromUser(user);
+     sp<CameraHeapMemory> mem(static_cast<CameraHeapMemory*>(data->handle));
+     if (index >= mem->mNumBufs) {
+         ALOGE("%s: invalid buffer index %d, max allowed is %d", __FUNCTION__,
+@@ -533,7 +554,7 @@ void CameraDevice::handleCallbackTimestamp(
+ void CameraDevice::sDataCbTimestamp(nsecs_t timestamp, int32_t msg_type,
+         const camera_memory_t *data, unsigned index, void *user) {
+     ALOGV("%s", __FUNCTION__);
+-    CameraDevice* object = static_cast<CameraDevice*>(user);
++    CameraDevice* object = deviceFromUser(user);
+     // Start refcounting the heap object from here on.  When the clients
+     // drop all references, it will be destroyed (as well as the enclosed
+     // MemoryHeapBase.
+@@ -721,6 +742,7 @@ Return<Status> CameraDevice::open(const sp<ICameraDeviceCallback>& callback) {
+         mDevice->ops->set_callbacks(mDevice,
+                 sNotifyCb, sDataCb, sDataCbTimestamp, sGetMemory, this);
+     }
++    sOpenDevice.store(this);
+ 
+     return getHidlStatus(rc);
+ }
+@@ -1061,6 +1083,7 @@ void CameraDevice::closeLocked() {
+         }
+         mDevice = nullptr;
+     }
++    forgetOpenDevice(this);
+ }
+ 
+ }  // namespace implementation
