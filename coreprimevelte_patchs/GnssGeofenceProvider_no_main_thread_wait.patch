@@ -1,0 +1,17 @@
+diff --git frameworks/base/services/core/java/com/android/server/location/GnssGeofenceProvider.java frameworks/base/services/core/java/com/android/server/location/GnssGeofenceProvider.java
+index 6ac4aeb7..8a69a386 100644
+--- frameworks/base/services/core/java/com/android/server/location/GnssGeofenceProvider.java
++++ frameworks/base/services/core/java/com/android/server/location/GnssGeofenceProvider.java
+@@ -81,7 +81,11 @@ class GnssGeofenceProvider extends IGpsGeofenceHardware.Stub {
+ 
+     @Override
+     public boolean isHardwareGeofenceSupported() {
+-        return runOnHandlerThread(mNative::isGeofenceSupported);
++        // Called on system_server's main thread (GeofenceProxy). Waiting for the handler thread
++        // (android.bg) deadlocks when that thread is itself waiting for the main thread, e.g.
++        // CertificateMonitor binding KeyChain at boot -> watchdog kills system_server. The native
++        // call only checks whether the GNSS HAL has a geofencing interface.
++        return mNative.isGeofenceSupported();
+     }
+ 
+     @Override
