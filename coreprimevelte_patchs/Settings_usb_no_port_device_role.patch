@@ -1,0 +1,21 @@
+diff --git packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
+index 9b0dcec..87e3881 100644
+--- packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
++++ packages/apps/Settings/src/com/android/settings/connecteddevice/usb/UsbBackend.java
+@@ -95,11 +95,16 @@ public class UsbBackend {
+ 
+     public int getPowerRole() {
+         updatePorts();
++        // No USB port HAL data (micro-USB, no dual_role_usb): always a power sink.
++        if (mPort == null) return UsbPort.POWER_ROLE_SINK;
+         return mPortStatus == null ? UsbPort.POWER_ROLE_NONE : mPortStatus.getCurrentPowerRole();
+     }
+ 
+     public int getDataRole() {
+         updatePorts();
++        // No USB port HAL data (micro-USB, no dual_role_usb): always the USB device,
++        // otherwise the "Use USB for" options stay disabled.
++        if (mPort == null) return UsbPort.DATA_ROLE_DEVICE;
+         return mPortStatus == null ? UsbPort.DATA_ROLE_NONE : mPortStatus.getCurrentDataRole();
+     }
+ 
