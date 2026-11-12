@@ -1,0 +1,67 @@
+diff --git frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
+index e6d7834..cfe08c0 100644
+--- frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
++++ frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
+@@ -104,6 +104,27 @@ status_t FramebufferSurface::advanceFrame() {
+     return result;
+ }
+ 
++void FramebufferSurface::onFrameAvailable(const BufferItem& item) {
++    {
++        Mutex::Autolock lock(mMutex);
++        mQueuedFrames++;
++        // The PXA1908 Vivante EGL dequeues and queues all framebuffer buffers in eglMakeCurrent,
++        // on SurfaceFlinger's main thread, then dequeues again: with nobody consuming until the
++        // first composition it waited forever. Drop older frames as Android 7's HWC1
++        // FramebufferSurface did (it consumed every frame in onFrameAvailable).
++        while (mQueuedFrames > 1) {
++            BufferItem old;
++            if (acquireBufferLocked(&old, 0) != NO_ERROR) {
++                break;
++            }
++            mQueuedFrames--;
++            addReleaseFenceLocked(old.mSlot, mSlots[old.mSlot].mGraphicBuffer, old.mFence);
++            releaseBufferLocked(old.mSlot, mSlots[old.mSlot].mGraphicBuffer);
++        }
++    }
++    ConsumerBase::onFrameAvailable(item);
++}
++
+ status_t FramebufferSurface::nextBuffer(uint32_t& outSlot,
+         sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence,
+         Dataspace& outDataspace) {
+@@ -119,6 +140,9 @@ status_t FramebufferSurface::nextBuffer(uint32_t& outSlot,
+         ALOGE("error acquiring buffer: %s (%d)", strerror(-err), err);
+         return err;
+     }
++    if (mQueuedFrames > 0) {
++        mQueuedFrames--;
++    }
+ 
+     // If the BufferQueue has freed and reallocated a buffer in mCurrentSlot
+     // then we may have acquired the slot we already own.  If we had released
+diff --git frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.h frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
+index 0fd8e9e..e726e2a 100644
+--- frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
++++ frameworks/native/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
+@@ -55,6 +55,10 @@ private:
+ 
+     virtual void freeBufferLocked(int slotIndex);
+ 
++    // Legacy (pre-HWC2) EGL drivers queue their whole swap chain before the first composition;
++    // keep at most one queued frame so the producer never runs out of slots.
++    virtual void onFrameAvailable(const BufferItem& item) override;
++
+     virtual void dumpLocked(String8& result, const char* prefix) const;
+ 
+     // nextBuffer waits for and then latches the next buffer from the
+@@ -93,6 +97,9 @@ private:
+     // Previous buffer to release after getting an updated retire fence
+     bool mHasPendingRelease;
+     int mPreviousBufferSlot;
++
++    // Frames queued by the producer and not yet acquired (see onFrameAvailable).
++    int mQueuedFrames = 0;
+     sp<GraphicBuffer> mPreviousBuffer;
+ };
+ 
