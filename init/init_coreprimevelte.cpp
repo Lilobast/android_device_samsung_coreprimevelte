@@ -98,8 +98,8 @@ void init_target_properties()
 
     if( bootloader.find("G361F") == 0 )
     {
-        property_override("ro.build.fingerprint", "samsung/coreprimeveltexx/coreprimevelte:5.1.1/LMY48B/G361FXXU1AOL1:user/release-keys");
-        property_override("ro.build.description", "coreprimeveltexx-user 5.1.1 LMY48B G361FXXU1AOL1 release-keys");
+        // Pie: the build fingerprint must match the vendor one (Build.isBuildConsistent),
+        // so the stock Lollipop fingerprint is no longer forced here.
         property_override("ro.product.model", "SM-G361F");
         property_override("ro.product.device", "coreprimevelte");
         property_override("ro.telephony.ril_class", "SamsungPXA1908RIL");
