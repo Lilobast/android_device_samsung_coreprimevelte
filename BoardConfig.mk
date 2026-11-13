@@ -91,3 +91,7 @@ SELINUX_IGNORE_NEVERALLOWS := true
 
 # Pie bring-up: SELinux permissive is set in the kernel defconfig (CONFIG_CMDLINE);
 # the bootloader ignores the boot.img cmdline.
+
+# Vendor security patch level: the vendor blobs come from the stock G361FXXU1APB1 system
+# (ro.build.version.security_patch=2016-02-01).
+VENDOR_SECURITY_PATCH := 2016-02-01

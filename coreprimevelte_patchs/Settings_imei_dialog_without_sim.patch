@@ -1,0 +1,22 @@
+diff --git packages/apps/Settings/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java packages/apps/Settings/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
+index d745115..130897e 100644
+--- packages/apps/Settings/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
++++ packages/apps/Settings/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
+@@ -115,13 +115,12 @@ public class ImeiInfoDialogController {
+     }
+ 
+     private void updateDialogForGsmPhone() {
++        // The IMEI and its software version identify the phone, not the SIM: show them without
++        // a SIM too (as Android 10 does) instead of "Unknown".
+         mDialog.setText(ID_IMEI_VALUE,
+-                mSubscriptionInfo != null ?
+-                getTextAsDigits(mTelephonyManager.getImei(mSlotId)) : "");
++                getTextAsDigits(mTelephonyManager.getImei(mSlotId)));
+         mDialog.setText(ID_IMEI_SV_VALUE,
+-                mSubscriptionInfo != null ?
+-                getTextAsDigits(mTelephonyManager.
+-                        getDeviceSoftwareVersion(mSlotId)) : "");
++                getTextAsDigits(mTelephonyManager.getDeviceSoftwareVersion(mSlotId)));
+         // device is not CDMA, do not display CDMA features
+         mDialog.removeViewFromScreen(ID_CDMA_SETTINGS);
+     }
