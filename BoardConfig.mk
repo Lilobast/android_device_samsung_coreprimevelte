@@ -35,8 +35,9 @@ TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm
 KERNEL_HEADER_DEFCONFIG := multi_v7_defconfig
 
-# RIL (Pie): AOSP rild + hardware/samsung libril (HIDL radio service) loading the stock
-# libsec-ril.so. The stock Lollipop rild/libril pair speaks the old socket protocol.
+# RIL (Pie): AOSP rild + AOSP libril (hardware/ril, HIDL radio service) loading the stock
+# libsec-ril.so (BOARD_PROVIDES_LIBRIL := false in BoardConfigCommon.mk). The stock
+# Lollipop rild/libril pair speaks the old socket protocol.
 TARGET_USES_STOCK_RIL := false
 
 # Shims for Lollipop blobs

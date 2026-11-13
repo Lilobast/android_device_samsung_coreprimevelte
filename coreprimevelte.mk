@@ -62,12 +62,6 @@ PRODUCT_PACKAGES += \
 # I want busybox :)
 PRODUCT_PACKAGES += busybox
 
-ifneq ($(TARGET_BUILD_VARIANT),user) 
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
-    ro.secure=0 \
-    ro.adb.secure=0
-endif
-
 # Inherit from 
 $(call inherit-product, device/samsung/pxa1908-common/pxa1908-common.mk)
 
@@ -75,12 +69,10 @@ $(call inherit-product, device/samsung/pxa1908-common/pxa1908-common.mk)
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.sys.usb.config=mtp,adb
 
-# Pie bring-up: accept the build PC without the on-screen prompt (debuggable builds only)
-PRODUCT_ADB_KEYS := device/samsung/coreprimevelte/bringup/adb_keys
-
-# Bring-up (LOS16): allow "adb root" without Developer options (no screen yet). Remove later.
+# Root access: adb only ("adb root" keeps working; no root for apps). adb asks for
+# authorization on the phone (ro.secure/ro.adb.secure stay at the userdebug defaults).
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
-    persist.sys.root_access=3
+    persist.sys.root_access=2
 
 
 # HWUI: the Skia GL pipeline draws nothing for launcher icons on the Vivante GC GPU; the HWUI GL
