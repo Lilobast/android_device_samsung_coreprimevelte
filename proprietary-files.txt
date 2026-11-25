@@ -121,3 +121,7 @@ vendor/media/PFFprec_600.emd
 #lib/libxml2.so
 lib/libstlport.so
 lib/libMrvlOmx.so
+
+# Stock RIL (TARGET_USES_STOCK_RIL), G361FXXU1APB1
+lib/libril.so
+etc/init/rild.rc
