@@ -32,6 +32,7 @@ lib/libbt-codec_sshd.so
 
 # Camera
 lib/hw/camera.mrvl.so
+# libcameraengine.so is taken from stock G361FXXU1AOL1 (newer than the APB1 base)
 lib/libcameraengine.so
 lib/libFaceDetect.so
 lib/libFlickerDetect.so
@@ -105,7 +106,6 @@ lib/libyasalgo.so
 # Vibrator
 lib/hw/vibrator.default.so
 
-lib/libwvm.so
 
 # Vendor libs
 vendor/Khronos/OpenCL/vendors/ocl32_mrvl.icd
@@ -121,3 +121,7 @@ vendor/media/PFFprec_600.emd
 #lib/libxml2.so
 lib/libstlport.so
 lib/libMrvlOmx.so
+
+# Stock RIL (TARGET_USES_STOCK_RIL), G361FXXU1APB1
+lib/libril.so
+etc/init/rild.rc
