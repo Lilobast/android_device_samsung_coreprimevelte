@@ -1,0 +1,36 @@
+From a5b730e3acb99f5bb92540eba77bdbbfcddc26db Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Fri, 13 Nov 2026 18:02:16 +0100
+Subject: [PATCH 2/2] coreprimevelte: Settings: IMEI dialog shows the IMEI
+ without a SIM
+
+Change-Id: I605a6ca669969145aa09e3b79837cb9ca954e033
+---
+ .../deviceinfo/imei/ImeiInfoDialogController.java        | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java b/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
+index d745115..130897e 100644
+--- a/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
++++ b/src/com/android/settings/deviceinfo/imei/ImeiInfoDialogController.java
+@@ -115,13 +115,12 @@ public class ImeiInfoDialogController {
+     }
+ 
+     private void updateDialogForGsmPhone() {
++        // The IMEI and its software version identify the phone, not the SIM: show them without
++        // a SIM too (as Android 10 does) instead of "Unknown".
+         mDialog.setText(ID_IMEI_VALUE,
+-                mSubscriptionInfo != null ?
+-                getTextAsDigits(mTelephonyManager.getImei(mSlotId)) : "");
++                getTextAsDigits(mTelephonyManager.getImei(mSlotId)));
+         mDialog.setText(ID_IMEI_SV_VALUE,
+-                mSubscriptionInfo != null ?
+-                getTextAsDigits(mTelephonyManager.
+-                        getDeviceSoftwareVersion(mSlotId)) : "");
++                getTextAsDigits(mTelephonyManager.getDeviceSoftwareVersion(mSlotId)));
+         // device is not CDMA, do not display CDMA features
+         mDialog.removeViewFromScreen(ID_CDMA_SETTINGS);
+     }
+-- 
+2.17.1
+

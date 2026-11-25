@@ -1,0 +1,33 @@
+From d3752e193af3c2b18f454dd6553d552b2b16e972 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Wed, 11 Nov 2026 16:07:29 +0100
+Subject: [PATCH 2/2] Pie: -Wno-error right before each module include;
+ liblog/JNI header fixes
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Change-Id: I3ea2a22886b8118d45f23685ad82ce803706e15e
+---
+ libbt-vendor/Android.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libbt-vendor/Android.mk b/libbt-vendor/Android.mk
+index 16f4674..8786f5e 100644
+--- a/libbt-vendor/Android.mk
++++ b/libbt-vendor/Android.mk
+@@ -1,7 +1,6 @@
+ LOCAL_PATH := $(call my-dir)
+ 
+ include $(CLEAR_VARS)
+-LOCAL_CFLAGS += -Wno-error  # Pie: legacy Marvell code
+ 
+ BDROID_DIR := $(TOP_DIR)system/bt
+ 
+@@ -22,4 +21,5 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+ LOCAL_MODULE_OWNER := marvell
+ LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
+ 
++LOCAL_CFLAGS += -Wno-error  # Pie: legacy Marvell code
+ include $(BUILD_SHARED_LIBRARY)
+-- 
+2.17.1
+

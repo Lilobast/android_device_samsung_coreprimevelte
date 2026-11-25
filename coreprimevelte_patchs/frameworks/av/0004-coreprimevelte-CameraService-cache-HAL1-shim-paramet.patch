@@ -1,0 +1,48 @@
+From c11b62aee81088aebe9b148e72f51389bc017b9a Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 17:22:54 +0100
+Subject: [PATCH 4/4] coreprimevelte: CameraService: cache HAL1 shim parameters
+ at startup
+
+Change-Id: I75232b4737379fc6f22c657ae010e7220e765166
+---
+ .../camera/libcameraservice/CameraService.cpp    | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/services/camera/libcameraservice/CameraService.cpp b/services/camera/libcameraservice/CameraService.cpp
+index 550be4a..f26100f 100644
+--- a/services/camera/libcameraservice/CameraService.cpp
++++ b/services/camera/libcameraservice/CameraService.cpp
+@@ -27,6 +27,7 @@
+ #include <sys/types.h>
+ #include <inttypes.h>
+ #include <pthread.h>
++#include <thread>
+ 
+ #include <android/hardware/ICamera.h>
+ #include <android/hardware/ICameraClient.h>
+@@ -144,6 +145,21 @@ void CameraService::onFirstRef()
+ 
+     mUidPolicy = new UidPolicy(this);
+     mUidPolicy->registerSelf();
++
++    // Legacy (HAL1) shim parameters are otherwise read lazily, by opening the camera
++    // internally the first time an app asks about it. With HAL1 only one camera can be
++    // open, so that internal open evicts the app's open camera (Camera2 opens the back
++    // camera, then queries the front one: the first launch after boot fails).
++    // Fill the cache now, before any app has a camera open.
++    sp<CameraService> self = this;
++    std::thread([self]() {
++        for (int i = 0; i < self->mNumberOfCameras; i++) {
++            CameraParameters params;
++            Status ret = self->getLegacyParametersLazy(i, &params);
++            ALOGI("Shim parameters for camera %d: %s", i,
++                    (ret.isOk() && !params.isEmpty()) ? "cached" : "failed");
++        }
++    }).detach();
+ }
+ 
+ status_t CameraService::enumerateProviders() {
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From 94d7dc5aff0589f9cf0bcce9624bbe8586c7bc3d Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 05:15:08 +0100
+Subject: [PATCH 4/5] coreprimevelte: sensors HAL service in group input
+
+Change-Id: I5ef23a311a09cdca409746be35cea0b4ea5aa436
+---
+ sensors/1.0/default/android.hardware.sensors@1.0-service.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sensors/1.0/default/android.hardware.sensors@1.0-service.rc b/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
+index b54842d..3af4115 100644
+--- a/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
++++ b/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
+@@ -1,6 +1,6 @@
+ service vendor.sensors-hal-1-0 /vendor/bin/hw/android.hardware.sensors@1.0-service
+     class hal
+     user system
+-    group system wakelock
++    group system wakelock input
+     capabilities BLOCK_SUSPEND
+     rlimit rtprio 10 10
+-- 
+2.17.1
+

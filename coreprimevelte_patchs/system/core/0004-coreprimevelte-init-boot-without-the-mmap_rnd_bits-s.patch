@@ -1,0 +1,33 @@
+From 16c497b29e52e0a7af29102a7c1a66921bbb68a0 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Wed, 11 Nov 2026 23:55:54 +0100
+Subject: [PATCH 4/7] coreprimevelte: init: boot without the mmap_rnd_bits
+ sysctl (3.14 kernel)
+
+Change-Id: I421f71db782c34cd49ec032a7bc959b12beb5fde
+---
+ init/security.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/init/security.cpp b/init/security.cpp
+index a3494a2..13df5e2 100644
+--- a/init/security.cpp
++++ b/init/security.cpp
+@@ -176,6 +176,14 @@ Result<Success> SetMmapRndBitsAction(const BuiltinArguments&) {
+     LOG(ERROR) << "Unknown architecture";
+ #endif
+ 
++    // coreprimevelte: the 3.14 kernel predates ARCH_MMAP_RND_BITS (commits listed above). Boot with
++    // the kernel's built-in randomization instead of rebooting. Only when the sysctl is missing.
++    if (access(MMAP_RND_PATH, F_OK) != 0 && access(MMAP_RND_COMPAT_PATH, F_OK) != 0) {
++        LOG(ERROR) << "kernel has no mmap_rnd_bits sysctl: keeping the kernel's default mmap "
++                      "randomization (backport ARCH_MMAP_RND_BITS to fix)";
++        return Success();
++    }
++
+     LOG(FATAL) << "Unable to set adequate mmap entropy value!";
+     return Error();
+ }
+-- 
+2.17.1
+

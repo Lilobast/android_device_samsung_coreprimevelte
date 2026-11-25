@@ -1,0 +1,32 @@
+From 59e73940504022db81fe967683dc7f490ee8fcee Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 16:17:53 +0100
+Subject: [PATCH] coreprimevelte: ART: no patchoat verify of the cached boot
+ image without a /system image
+
+Change-Id: I0020badc13b979e78c8b10458e0bc1b59047d3f6
+---
+ runtime/gc/space/image_space.cc | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/runtime/gc/space/image_space.cc b/runtime/gc/space/image_space.cc
+index fa68481..bae4cde 100644
+--- a/runtime/gc/space/image_space.cc
++++ b/runtime/gc/space/image_space.cc
+@@ -1539,7 +1539,12 @@ std::unique_ptr<ImageSpace> ImageSpace::CreateBootImage(const char* image_locati
+     DCHECK(!dalvik_cache.empty());
+     std::string local_error_msg;
+     // All secondary images are verified when the primary image is verified.
+-    bool verified = VerifyImage(image_location, dalvik_cache.c_str(), image_isa, &local_error_msg);
++    // Without a boot image in /system (no dexpreopt) there is nothing to verify the cache
++    // against: patchoat --verify fails on the missing /system/framework/<isa>/boot.art.rel,
++    // which pruned the whole dalvik cache and recompiled everything on every boot. The cache
++    // image is still validated when it is loaded (step 1.b, validate_oat_file).
++    bool verified = !has_system ||
++        VerifyImage(image_location, dalvik_cache.c_str(), image_isa, &local_error_msg);
+     // If we prune for space at a secondary image, we may end up in a crash loop with the _exit
+     // path.
+     bool check_space = CheckSpace(dalvik_cache, &local_error_msg);
+-- 
+2.17.1
+

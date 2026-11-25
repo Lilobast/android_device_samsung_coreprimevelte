@@ -1,0 +1,69 @@
+From 54762bedc4460d59a480aabcb00c16e5f9ce872a Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Wed, 11 Nov 2026 15:56:46 +0100
+Subject: [PATCH] coreprimevelte: kernel headers: TARGET_KERNEL_HEADER_ARCH for
+ 32-bit userspace
+
+Change-Id: Ia792fa21b54cc554ff794463cd1d05732319d6c4
+---
+ build/soong/Android.bp      | 4 ++--
+ config/BoardConfigKernel.mk | 9 +++++++++
+ config/BoardConfigSoong.mk  | 1 +
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/build/soong/Android.bp b/build/soong/Android.bp
+index 382b68e..1e4361a 100644
+--- a/build/soong/Android.bp
++++ b/build/soong/Android.bp
+@@ -28,14 +28,14 @@ lineage_generator {
+     name: "generated_kernel_includes",
+ 
+     // The headers make command
+-    cmd: "make $(KERNEL_MAKE_FLAGS) -C $(TARGET_KERNEL_SOURCE) O=$(genDir) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) headers_install",
++    cmd: "make $(KERNEL_MAKE_FLAGS) -C $(TARGET_KERNEL_SOURCE) O=$(genDir) ARCH=$(KERNEL_HEADER_ARCH) $(KERNEL_CROSS_COMPILE) headers_install",
+ 
+     // Directories that can be imported by a cc_* module generated_headers property
+     export_include_dirs: ["usr/include", "usr/techpack/audio/include"],
+ 
+     // Sources for dependency tracking
+     dep_root: "$(TARGET_KERNEL_SOURCE)",
+-    dep_files: [ "Makefile", "include/**/*", "arch/$(KERNEL_ARCH)/include/**/*", "techpack/audio/include/**/*"],
++    dep_files: [ "Makefile", "include/**/*", "arch/$(KERNEL_HEADER_ARCH)/include/**/*", "techpack/audio/include/**/*"],
+ }
+ 
+ cc_library_headers {
+diff --git a/config/BoardConfigKernel.mk b/config/BoardConfigKernel.mk
+index 9246da5..b5afc59 100644
+--- a/config/BoardConfigKernel.mk
++++ b/config/BoardConfigKernel.mk
+@@ -52,6 +52,15 @@ else
+ KERNEL_ARCH := $(TARGET_KERNEL_ARCH)
+ endif
+ 
++# Userspace kernel headers can use another arch than the kernel itself
++# (e.g. 32-bit userspace on an arm64 kernel).
++TARGET_KERNEL_HEADER_ARCH := $(strip $(TARGET_KERNEL_HEADER_ARCH))
++ifeq ($(TARGET_KERNEL_HEADER_ARCH),)
++KERNEL_HEADER_ARCH := $(KERNEL_ARCH)
++else
++KERNEL_HEADER_ARCH := $(TARGET_KERNEL_HEADER_ARCH)
++endif
++
+ TARGET_KERNEL_CROSS_COMPILE_PREFIX := $(strip $(TARGET_KERNEL_CROSS_COMPILE_PREFIX))
+ ifneq ($(TARGET_KERNEL_CROSS_COMPILE_PREFIX),)
+ KERNEL_TOOLCHAIN_PREFIX ?= $(TARGET_KERNEL_CROSS_COMPILE_PREFIX)
+diff --git a/config/BoardConfigSoong.mk b/config/BoardConfigSoong.mk
+index 82dedad..03436fe 100644
+--- a/config/BoardConfigSoong.mk
++++ b/config/BoardConfigSoong.mk
+@@ -1,6 +1,7 @@
+ # Add variables that we wish to make available to soong here.
+ EXPORT_TO_SOONG := \
+     KERNEL_ARCH \
++    KERNEL_HEADER_ARCH \
+     KERNEL_CROSS_COMPILE \
+     KERNEL_MAKE_FLAGS \
+     TARGET_KERNEL_CONFIG \
+-- 
+2.17.1
+

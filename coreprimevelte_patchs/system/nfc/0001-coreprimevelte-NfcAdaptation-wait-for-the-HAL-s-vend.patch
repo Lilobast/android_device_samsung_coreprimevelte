@@ -1,0 +1,35 @@
+From 95afeade80cfb00e52dfdb7dfc7b749545b4cc23 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 16:50:03 +0100
+Subject: [PATCH] coreprimevelte: NfcAdaptation: wait for the HAL's vendor
+ pre-discovery
+
+Change-Id: I5fedf9a5d1d7644a42be332a74be3efc74083729
+---
+ src/adaptation/NfcAdaptation.cc | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/adaptation/NfcAdaptation.cc b/src/adaptation/NfcAdaptation.cc
+index 528bdd7..97b65c9 100755
+--- a/src/adaptation/NfcAdaptation.cc
++++ b/src/adaptation/NfcAdaptation.cc
+@@ -623,7 +623,15 @@ bool NfcAdaptation::HalPrediscover() {
+   const char* func = "NfcAdaptation::HalPrediscover";
+   DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s", func);
+   bool retval = FALSE;
+-  mHal->prediscover();
++  // A legacy pre_discover() that returns non-zero has started vendor pre-discovery (Broadcom
++  // bcm2079x: pre-discovery config commands) and sends HAL_NFC_PRE_DISCOVER_CPLT_EVT when done;
++  // the HIDL wrappers report that as NfcStatus::FAILED. Return TRUE so the stack hands the HAL
++  // the command window and waits; otherwise both send NCI commands at once, responses get
++  // mixed up ("nfc_ncif_update_window: Unexpected call") and a command times out.
++  Return<::android::hardware::nfc::V1_0::NfcStatus> status = mHal->prediscover();
++  if (status.isOk() && status == ::android::hardware::nfc::V1_0::NfcStatus::FAILED) {
++    retval = TRUE;
++  }
+   return retval;
+ }
+ 
+-- 
+2.17.1
+

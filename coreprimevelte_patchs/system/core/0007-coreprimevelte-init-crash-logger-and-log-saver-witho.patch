@@ -1,0 +1,152 @@
+From dcdcbfd2b2e2c28548d49c26688cc6199d7d9c14 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 00:31:05 +0100
+Subject: [PATCH 7/7] coreprimevelte: init: crash logger and log saver without
+ heap use (bring-up)
+
+Change-Id: Ib6dd3eeb0af83ee35d75504cb437e7c169c10980
+---
+ init/init.cpp   | 45 ++++++++++++++++++++++++++++----------------
+ init/reboot.cpp | 50 +++++++++++++++++++++++++++++++------------------
+ 2 files changed, 61 insertions(+), 34 deletions(-)
+
+diff --git a/init/init.cpp b/init/init.cpp
+index 792fe60..c6e5e4b 100644
+--- a/init/init.cpp
++++ b/init/init.cpp
+@@ -461,33 +461,46 @@ static void set_usb_controller() {
+ 
+ // coreprimevelte bring-up: write what killed init to the kernel log (saved to /cache by
+ // RebootSystem). Symbolize with out/.../symbols/init: address - text start of "init" below.
++static char gCrashMapsBuf[64 * 1024];
++
++// No heap use here: init may have crashed inside malloc.
+ static void LogInitCrash(int signal, siginfo_t* info, void* ucontext) {
+     int fd = open("/dev/kmsg", O_WRONLY | O_CLOEXEC);
+     if (fd < 0) return;
+-    char buf[512];
++    char buf[256];
+     int n = snprintf(buf, sizeof(buf), "<3>init: fatal signal %d code %d addr %p\n", signal,
+                      info ? info->si_code : 0, info ? info->si_addr : nullptr);
+     write(fd, buf, n);
+     unsigned long text_start = 0, text_end = 0, stack_start = 0, stack_end = 0;
+-    FILE* maps = fopen("/proc/self/maps", "re");
+-    if (maps) {
+-        char line[256];
+-        while (fgets(line, sizeof(line), maps)) {
++    int mfd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
++    if (mfd >= 0) {
++        size_t len = 0;
++        ssize_t r;
++        while (len < sizeof(gCrashMapsBuf) - 1 &&
++               (r = read(mfd, gCrashMapsBuf + len, sizeof(gCrashMapsBuf) - 1 - len)) > 0) {
++            len += r;
++        }
++        close(mfd);
++        gCrashMapsBuf[len] = '\0';
++        for (char* line = gCrashMapsBuf; line && *line;) {
++            char* next = strchr(line, '\n');
++            if (next) *next++ = '\0';
+             unsigned long s, e;
+             char perms[8];
+-            if (strstr(line, "/init") && sscanf(line, "%lx-%lx %7s", &s, &e, perms) == 3 &&
+-                perms[2] == 'x') {
+-                text_start = s;
+-                text_end = e;
+-                n = snprintf(buf, sizeof(buf), "<3>init: map %s", line);
+-                write(fd, buf, n);
+-            }
+-            if (strstr(line, "[stack]") && sscanf(line, "%lx-%lx", &s, &e) == 2) {
+-                stack_start = s;
+-                stack_end = e;
++            if (sscanf(line, "%lx-%lx %7s", &s, &e, perms) == 3) {
++                if (strstr(line, "/init") && perms[2] == 'x') {
++                    text_start = s;
++                    text_end = e;
++                    n = snprintf(buf, sizeof(buf), "<3>init: map %s\n", line);
++                    write(fd, buf, n);
++                }
++                if (strstr(line, "[stack]")) {
++                    stack_start = s;
++                    stack_end = e;
++                }
+             }
++            line = next;
+         }
+-        fclose(maps);
+     }
+ #if defined(__arm__)
+     if (ucontext) {
+diff --git a/init/reboot.cpp b/init/reboot.cpp
+index a64de85..3452bc4 100644
+--- a/init/reboot.cpp
++++ b/init/reboot.cpp
+@@ -189,33 +189,47 @@ bool IsRebootCapable() {
+ // this kernel both turns into recovery, and ramoops does not survive TWRP. Save the kernel log (it
+ // holds init's log) to the cache partition before every reboot, so it can be read from TWRP:
+ // /cache/init_fatal_kmsg.txt (previous: .1).
++static char gFatalKlogBuf[1 << 20];  // CONFIG_LOG_BUF_SHIFT=20
++
++static void WriteAll(int fd, const char* p, size_t n) {
++    while (n > 0) {
++        ssize_t w = write(fd, p, n);
++        if (w <= 0) return;
++        p += w;
++        n -= w;
++    }
++}
++
++// No heap use here: this also runs from init's crash handler.
+ static void SaveFatalRebootLog(const std::string& rebootTarget) {
+     if (getpid() != 1) return;  // every reboot by init, whatever the target (bring-up)
+-    std::string dev;
+-    if (!android::base::ReadFileToString("/sys/class/block/mmcblk0p17/dev", &dev)) return;
++    char dev[32] = {};
++    int fd = open("/sys/class/block/mmcblk0p17/dev", O_RDONLY | O_CLOEXEC);
++    if (fd < 0) return;
++    ssize_t r = read(fd, dev, sizeof(dev) - 1);
++    close(fd);
+     unsigned int maj, min;
+-    if (sscanf(dev.c_str(), "%u:%u", &maj, &min) != 2) return;
++    if (r <= 0 || sscanf(dev, "%u:%u", &maj, &min) != 2) return;
+     const char* node = "/dev/.fatal_log_blk";
+     const char* dir = "/dev/.fatal_log_mnt";
+     unlink(node);
+     if (mknod(node, S_IFBLK | 0600, makedev(maj, min)) != 0) return;
+     mkdir(dir, 0700);
+     if (mount(node, dir, "ext4", MS_NOATIME | MS_NODEV | MS_NOSUID, "") == 0) {
+-        int size = klogctl(KLOG_SIZE_BUFFER, nullptr, 0);
+-        if (size > 0) {
+-            std::vector<char> buf(size);
+-            int n = klogctl(KLOG_READ_ALL, buf.data(), size);
+-            if (n > 0) {
+-                std::string path = std::string(dir) + "/init_fatal_kmsg.txt";
+-                rename(path.c_str(), (path + ".1").c_str());
+-                android::base::unique_fd fd(
+-                        open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644));
+-                if (fd >= 0) {
+-                    std::string head = "reboot target: " + rebootTarget + "\n";
+-                    android::base::WriteFully(fd, head.data(), head.size());
+-                    android::base::WriteFully(fd, buf.data(), n);
+-                    fsync(fd);
+-                }
++        int n = klogctl(KLOG_READ_ALL, gFatalKlogBuf, sizeof(gFatalKlogBuf));
++        if (n > 0) {
++            rename("/dev/.fatal_log_mnt/init_fatal_kmsg.txt",
++                   "/dev/.fatal_log_mnt/init_fatal_kmsg.txt.1");
++            int out = open("/dev/.fatal_log_mnt/init_fatal_kmsg.txt",
++                           O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
++            if (out >= 0) {
++                const char* head = "reboot target: ";
++                WriteAll(out, head, strlen(head));
++                WriteAll(out, rebootTarget.c_str(), strlen(rebootTarget.c_str()));
++                WriteAll(out, "\n", 1);
++                WriteAll(out, gFatalKlogBuf, n);
++                fsync(out);
++                close(out);
+             }
+         }
+         umount(dir);
+-- 
+2.17.1
+

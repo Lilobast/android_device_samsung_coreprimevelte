@@ -1,0 +1,54 @@
+From ca0ea9a7c7f9a3c58e2ae7e0916ea085595acea1 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 01:45:31 +0100
+Subject: [PATCH 2/4] coreprimevelte: mediaserver: honour
+ config.disable_cameraservice
+
+Change-Id: Iaba73b389d598788d31ec2ec56138d3de3f16490
+---
+ media/mediaserver/Android.mk           | 1 +
+ media/mediaserver/main_mediaserver.cpp | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/media/mediaserver/Android.mk b/media/mediaserver/Android.mk
+index 72fd887..b8433f1 100644
+--- a/media/mediaserver/Android.mk
++++ b/media/mediaserver/Android.mk
+@@ -43,6 +43,7 @@ ifeq ($(TARGET_HAS_LEGACY_CAMERA_HAL1),true)
+ 
+     LOCAL_SHARED_LIBRARIES += \
+         libcameraservice \
++        libcutils \
+         libgui \
+         libhidltransport \
+         android.hardware.camera.common@1.0 \
+diff --git a/media/mediaserver/main_mediaserver.cpp b/media/mediaserver/main_mediaserver.cpp
+index 53b5893..fcea494 100644
+--- a/media/mediaserver/main_mediaserver.cpp
++++ b/media/mediaserver/main_mediaserver.cpp
+@@ -21,6 +21,7 @@
+ #include <binder/IPCThreadState.h>
+ #include <binder/ProcessState.h>
+ #include <binder/IServiceManager.h>
++#include <cutils/properties.h>
+ #include <utils/Log.h>
+ #include "RegisterExtensions.h"
+ 
+@@ -51,7 +52,13 @@ int main(int argc __unused, char **argv __unused)
+     MediaPlayerService::instantiate();
+     ResourceManagerService::instantiate();
+ #ifdef NO_CAMERA_SERVER
+-    CameraService::instantiate();
++    // Same switch as the standalone cameraserver (camera-less devices, or a camera HAL that is
++    // not usable yet): don't start the camera service at all.
++    if (!property_get_bool("config.disable_cameraservice", false)) {
++        CameraService::instantiate();
++    } else {
++        ALOGI("Camera service disabled (config.disable_cameraservice)");
++    }
+ #endif
+     registerExtensions();
+     ProcessState::self()->startThreadPool();
+-- 
+2.17.1
+

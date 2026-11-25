@@ -1,0 +1,35 @@
+From 45dadd4295b415494ec4e6a29c9ad441ceeeec8a Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 00:14:33 +0100
+Subject: [PATCH 6/7] coreprimevelte: init: save the kernel log before every
+ reboot (bring-up)
+
+Change-Id: Id07cbfc646b49d0cb866844f62ac1f5b5f8fb8e0
+---
+ init/reboot.cpp | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/init/reboot.cpp b/init/reboot.cpp
+index 5e21e43..a64de85 100644
+--- a/init/reboot.cpp
++++ b/init/reboot.cpp
+@@ -185,11 +185,12 @@ bool IsRebootCapable() {
+     return value == CAP_SET;
+ }
+ 
+-// coreprimevelte bring-up: init's fatal paths reboot to "bootloader", which this kernel turns into
+-// recovery, and ramoops does not survive TWRP. Save the kernel log (it holds init's log) to the
+-// cache partition first, so it can be read from TWRP: /cache/init_fatal_kmsg.txt (previous: .1).
++// coreprimevelte bring-up: init's fatal paths reboot to "bootloader" (fs_mgr to "recovery"), which
++// this kernel both turns into recovery, and ramoops does not survive TWRP. Save the kernel log (it
++// holds init's log) to the cache partition before every reboot, so it can be read from TWRP:
++// /cache/init_fatal_kmsg.txt (previous: .1).
+ static void SaveFatalRebootLog(const std::string& rebootTarget) {
+-    if (getpid() != 1 || rebootTarget.compare(0, 10, "bootloader") != 0) return;
++    if (getpid() != 1) return;  // every reboot by init, whatever the target (bring-up)
+     std::string dev;
+     if (!android::base::ReadFileToString("/sys/class/block/mmcblk0p17/dev", &dev)) return;
+     unsigned int maj, min;
+-- 
+2.17.1
+

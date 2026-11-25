@@ -1,0 +1,31 @@
+From c9ccb9b70cdfc73fe6805a77bb87eea0bb1f3b30 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 02:05:23 +0100
+Subject: [PATCH 3/5] coreprimevelte: nfc service: pre-O pthread behaviour for
+ the legacy HAL blob
+
+Change-Id: I1dae89c91e3dee4479f523a3a0f62cfeb54921aa
+---
+ nfc/1.0/default/service.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/nfc/1.0/default/service.cpp b/nfc/1.0/default/service.cpp
+index 731acd5..503cea6 100644
+--- a/nfc/1.0/default/service.cpp
++++ b/nfc/1.0/default/service.cpp
+@@ -8,6 +8,12 @@
+ using android::hardware::nfc::V1_0::INfc;
+ using android::hardware::defaultPassthroughServiceImplementation;
+ 
++// libdl: lets this process keep pre-O bionic behaviour.
++extern "C" void android_set_application_target_sdk_version(uint32_t target);
++
+ int main() {
++    // The Lollipop bcm2079x NFC HAL blob pthread_join()s threads that already exited. Pie's bionic
++    // aborts on that for API >= 26 ("invalid pthread_t passed to libc"); older APIs get ESRCH.
++    android_set_application_target_sdk_version(25);
+     return defaultPassthroughServiceImplementation<INfc>();
+ }
+-- 
+2.17.1
+

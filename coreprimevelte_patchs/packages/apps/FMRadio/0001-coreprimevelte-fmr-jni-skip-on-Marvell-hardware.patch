@@ -1,0 +1,28 @@
+From 65ed2769d883bf5de77c166bfb5cfb14f00102a1 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Wed, 11 Nov 2026 14:48:16 +0100
+Subject: [PATCH] coreprimevelte: fmr jni: skip on Marvell hardware
+
+Change-Id: I712740ebb55bf891635789497d0a2e164dafa41e
+---
+ jni/fmr/Android.mk | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/jni/fmr/Android.mk b/jni/fmr/Android.mk
+index d6a6ec1..7febec2 100644
+--- a/jni/fmr/Android.mk
++++ b/jni/fmr/Android.mk
+@@ -37,7 +37,10 @@ LOCAL_SHARED_LIBRARIES := \
+ LOCAL_MODULE := libfmjni
+ LOCAL_MODULE_TAGS := optional
+ 
++# Marvell boards ship their own libfmjni (hardware/marvell/fm)
++ifneq ($(BOARD_USES_MRVL_HARDWARE),true)
+ include $(BUILD_SHARED_LIBRARY)
++endif
+ 
+ endif # BOARD_HAVE_BCM_FM
+ endif # BOARD_HAVE_QCOM_FM
+-- 
+2.17.1
+

@@ -1,0 +1,63 @@
+From f75cd52bc411af048751b50fa4bfa817b4978cbd Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 04:43:15 +0100
+Subject: [PATCH 5/5] coreprimevelte: ISurfaceComposer: keep capture buffers
+ alive for Vivante gralloc
+
+Change-Id: Ic986eb2229feb12465640cd47f49f4b9afca3fbc
+---
+ libs/gui/ISurfaceComposer.cpp | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/libs/gui/ISurfaceComposer.cpp b/libs/gui/ISurfaceComposer.cpp
+index fdf56e6..bf09965 100644
+--- a/libs/gui/ISurfaceComposer.cpp
++++ b/libs/gui/ISurfaceComposer.cpp
+@@ -18,6 +18,7 @@
+ #define LOG_TAG "SurfaceFlinger"
+ 
+ #include <stdint.h>
++#include <mutex>
+ #include <sys/types.h>
+ 
+ #include <binder/Parcel.h>
+@@ -43,6 +44,20 @@
+ 
+ namespace android {
+ 
++namespace {
++// Vivante gralloc names buffers by a GPU memory node, not an fd: if SurfaceFlinger
++// drops its reference while the reply is in flight, the node is freed before the
++// client imports it. Keep the last few capture buffers alive a little longer.
++void keepCaptureBufferAlive(const sp<GraphicBuffer>& buffer) {
++    static std::mutex sLock;
++    static sp<GraphicBuffer> sRecent[4];
++    static size_t sNext = 0;
++    std::lock_guard<std::mutex> lock(sLock);
++    sRecent[sNext] = buffer;
++    sNext = (sNext + 1) % 4;
++}
++} // namespace
++
+ using ui::ColorMode;
+ 
+ class BpSurfaceComposer : public BpInterface<ISurfaceComposer>
+@@ -658,6 +673,7 @@ status_t BnSurfaceComposer::onTransact(
+             if (res == NO_ERROR) {
+                 reply->write(*outBuffer);
+                 reply->writeBool(capturedSecureLayers);
++                keepCaptureBufferAlive(outBuffer);
+             }
+             return NO_ERROR;
+         }
+@@ -675,6 +691,7 @@ status_t BnSurfaceComposer::onTransact(
+             reply->writeInt32(res);
+             if (res == NO_ERROR) {
+                 reply->write(*outBuffer);
++                keepCaptureBufferAlive(outBuffer);
+             }
+             return NO_ERROR;
+         }
+-- 
+2.17.1
+

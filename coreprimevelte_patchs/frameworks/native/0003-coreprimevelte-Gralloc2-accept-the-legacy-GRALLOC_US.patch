@@ -1,0 +1,28 @@
+From 546e1e7426d3efff3280ce94022b3df4d22ccc74 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 00:52:31 +0100
+Subject: [PATCH 3/5] coreprimevelte: Gralloc2: accept the legacy
+ GRALLOC_USAGE_FOREIGN_BUFFERS bit
+
+Change-Id: I2aae1aee5d4898191ab20d6bd290fd7193cf699a
+---
+ libs/ui/Gralloc2.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libs/ui/Gralloc2.cpp b/libs/ui/Gralloc2.cpp
+index 918251f..d34a80c 100644
+--- a/libs/ui/Gralloc2.cpp
++++ b/libs/ui/Gralloc2.cpp
+@@ -94,6 +94,9 @@ Gralloc2::Error Mapper::validateBufferDescriptorInfo(
+     if (mMapperV2_1 != nullptr) {
+         validUsageBits = validUsageBits | getValid11UsageBits();
+     }
++    // Legacy gralloc flag set by pre-Treble EGL blobs; ignored by allocators
++    // (GRALLOC_USAGE_ALLOC_MASK).
++    validUsageBits |= 0x00200000; /* GRALLOC_USAGE_FOREIGN_BUFFERS */
+ 
+     if (descriptorInfo.usage & ~validUsageBits) {
+         ALOGE("buffer descriptor contains invalid usage bits 0x%" PRIx64,
+-- 
+2.17.1
+

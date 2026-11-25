@@ -1,0 +1,28 @@
+From c91ee7ca3187ce0c90f148872e308de9975ee2cc Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 01:46:25 +0100
+Subject: [PATCH 2/5] coreprimevelte: bluetooth HAL service in group
+ net_bt_stack
+
+Change-Id: Ie756277aeb1ee1b0709d8f9ce5427a0acb29e163
+---
+ .../1.0/default/android.hardware.bluetooth@1.0-service.rc      | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/bluetooth/1.0/default/android.hardware.bluetooth@1.0-service.rc b/bluetooth/1.0/default/android.hardware.bluetooth@1.0-service.rc
+index a634441..d8cbe4b 100644
+--- a/bluetooth/1.0/default/android.hardware.bluetooth@1.0-service.rc
++++ b/bluetooth/1.0/default/android.hardware.bluetooth@1.0-service.rc
+@@ -2,7 +2,8 @@ service vendor.bluetooth-1-0 /vendor/bin/hw/android.hardware.bluetooth@1.0-servi
+     class hal
+     capabilities BLOCK_SUSPEND NET_ADMIN SYS_NICE
+     user bluetooth
+-    group bluetooth
++    # net_bt_stack: PXA1908 /dev/mbtchar0 is 0660 system:net_bt_stack
++    group bluetooth net_bt_stack
+     writepid /dev/stune/foreground/tasks
+ 
+ on property:vts.native_server.on=1 && property:ro.build.type=userdebug
+-- 
+2.17.1
+

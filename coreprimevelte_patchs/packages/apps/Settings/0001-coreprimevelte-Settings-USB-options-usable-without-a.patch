@@ -1,0 +1,53 @@
+From b0940ddf0f228ede2c54e90e348a2a78ff2404d1 Mon Sep 17 00:00:00 2001
+From: builder <builder@localhost>
+Date: Thu, 12 Nov 2026 17:22:55 +0100
+Subject: [PATCH 1/2] coreprimevelte: Settings: USB options usable without a
+ USB port HAL
+
+Change-Id: Iaaeb4dccda747da553bdecf486b28720b484791e
+---
+ .../android/settings/connecteddevice/usb/UsbBackend.java | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/com/android/settings/connecteddevice/usb/UsbBackend.java b/src/com/android/settings/connecteddevice/usb/UsbBackend.java
+index 9b0dcec..32a7e49 100644
+--- a/src/com/android/settings/connecteddevice/usb/UsbBackend.java
++++ b/src/com/android/settings/connecteddevice/usb/UsbBackend.java
+@@ -95,11 +95,16 @@ public class UsbBackend {
+ 
+     public int getPowerRole() {
+         updatePorts();
++        // No USB port HAL data (micro-USB, no dual_role_usb): always a power sink.
++        if (mPort == null) return UsbPort.POWER_ROLE_SINK;
+         return mPortStatus == null ? UsbPort.POWER_ROLE_NONE : mPortStatus.getCurrentPowerRole();
+     }
+ 
+     public int getDataRole() {
+         updatePorts();
++        // No USB port HAL data (micro-USB, no dual_role_usb): always the USB device,
++        // otherwise the "Use USB for" options stay disabled.
++        if (mPort == null) return UsbPort.DATA_ROLE_DEVICE;
+         return mPortStatus == null ? UsbPort.DATA_ROLE_NONE : mPortStatus.getCurrentDataRole();
+     }
+ 
+@@ -154,6 +159,8 @@ public class UsbBackend {
+     }
+ 
+     public boolean isSingleDataRoleSupported() {
++        // No USB port HAL data: one fixed role, hide the role switch.
++        if (mPort == null) return true;
+         return mPort != null && mPortStatus != null
+                 && ((!mPortStatus
+                 .isRoleCombinationSupported(UsbPort.POWER_ROLE_SINK, UsbPort.DATA_ROLE_HOST)
+@@ -166,6 +173,8 @@ public class UsbBackend {
+     }
+ 
+     public boolean isSinglePowerRoleSupported() {
++        // No USB port HAL data: one fixed role, hide the role switch.
++        if (mPort == null) return true;
+         return mPort != null && mPortStatus != null
+                 && ((!mPortStatus
+                 .isRoleCombinationSupported(UsbPort.POWER_ROLE_SINK, UsbPort.DATA_ROLE_DEVICE)
+-- 
+2.17.1
+
